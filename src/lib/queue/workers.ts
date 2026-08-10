@@ -50,6 +50,7 @@ const scriptHandler: Handler = async (job) => {
     episodeNumber?: number;
     input?: string;
   };
+  console.log(`[script] 开始处理 job=${job.id} agent=${agent} projectId=${projectId}`);
   await markProcessing(taskId);
 
   let result: Record<string, unknown>;
@@ -164,6 +165,7 @@ const videoHandler: Handler = async (job) => {
   if (submitHandle.status === "done" && submitHandle.result) {
     // 同步型 provider（mock）：直接返回
     const result = { videoPath: (submitHandle.result as { videoPath: string }).videoPath };
+    await qcVideoOrThrow(result.videoPath, job.attemptsMade);
     await writeBackShot(job.data, result.videoPath);
     await markDone(taskId, result);
     return result;
@@ -187,6 +189,7 @@ const videoHandler: Handler = async (job) => {
     handle = await video.getTask(providerTaskId);
     if (handle.status === "done") {
       const result = { videoPath: handle.result?.videoPath };
+      if (result.videoPath) await qcVideoOrThrow(result.videoPath, job.attemptsMade);
       await writeBackShot(job.data, result.videoPath);
       await markDone(taskId, result);
       return result;
@@ -198,6 +201,19 @@ const videoHandler: Handler = async (job) => {
   }
   throw new Error("视频生成超时（20分钟）");
 };
+
+/** 视频 QC 封装：WARN 记录日志，FAIL 抛错（触发队列重试，attempts=3 → 至多重试 2 次） */
+async function qcVideoOrThrow(relPath: string, attemptsMade: number): Promise<void> {
+  const { qcVideo } = await import("@/lib/quality");
+  const r = await qcVideo(relPath);
+  for (const w of r.warnings) console.warn(`[qc:video] WARN ${relPath}: ${w}`);
+  if (!r.ok) {
+    const msg = `QC 未通过: ${r.errors.join("; ")}`;
+    console.error(`[qc:video] FAIL ${relPath} (attempt ${attemptsMade + 1}): ${msg}`);
+    throw new Error(msg);
+  }
+  console.log(`[qc:video] PASS ${relPath}${attemptsMade > 0 ? ` (重试后成功, attempt ${attemptsMade + 1})` : ""}`);
+}
 
 /** 视频/配音完成后回写 Shot（shotId 存在时） */
 async function writeBackShot(
