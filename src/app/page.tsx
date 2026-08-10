@@ -74,12 +74,20 @@ export default function HomePage() {
             小说 → 剧本 → 资产 → 分镜 → 视频，全流程 AI 创作流水线
           </p>
         </div>
-        <Link
-          href="/settings"
-          className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500"
-        >
-          设置
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/tasks"
+            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500"
+          >
+            任务中心
+          </Link>
+          <Link
+            href="/settings"
+            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500"
+          >
+            设置
+          </Link>
+        </div>
       </header>
 
       {/* 新建项目 */}

@@ -59,6 +59,8 @@ export interface EnqueueGenTaskInput {
   payload: Record<string, unknown>;
   /** 延迟执行（ms） */
   delay?: number;
+  /** 显式 jobId（重试时必传新值，否则 BullMQ 返回旧 job 不执行） */
+  jobId?: string;
   /** 入队时立即标记 GenTask 为 RUNNING（默认 true） */
   markRunning?: boolean;
 }
@@ -66,13 +68,15 @@ export interface EnqueueGenTaskInput {
 /** 入队并同步 GenTask 状态（QUEUED → RUNNING） */
 export async function enqueueGenTask(
   queueName: QueueName,
-  { taskId, payload, delay = 0 }: EnqueueGenTaskInput
+  { taskId, payload, delay = 0, jobId }: EnqueueGenTaskInput
 ): Promise<string> {
   const queue = getQueue(queueName);
+  // 默认 jobId = taskId（幂等：同任务不重复入队）；
+  // 重试场景必须传新 jobId，否则 BullMQ 返回已完成旧 job 而不重新执行
   const job = await queue.add(
     `${taskId}`,
     { taskId, ...payload },
-    { jobId: taskId, delay, removeOnFail: false }
+    { jobId: jobId ?? taskId, delay, removeOnFail: false }
   );
   return job.id ?? taskId;
 }
