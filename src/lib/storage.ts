@@ -24,6 +24,7 @@ const DIRS = {
   subs: "subs",
   bgm: "bgm",
   sfx: "sfx",
+  exports: "exports",
   temp: "temp",
 } as const;
 

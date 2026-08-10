@@ -81,6 +81,7 @@ export default function ComposeWorkbench({
   const [busy, setBusy] = useState(false);
   const [bgmMood, setBgmMood] = useState<string | null>(null);
   const [draft, setDraft] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<string | null>(null);
   const [saving, setSaving] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -334,6 +335,30 @@ export default function ComposeWorkbench({
                 >
                   下载 SRT 字幕
                 </a>
+                {/* P1-6 导出与分享 */}
+                <a
+                  href={`/api/projects/${projectId}/export?episode=${ep.number}`}
+                  download
+                  className="inline-block rounded-lg bg-teal-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-teal-500"
+                >
+                  导出全部资源（ZIP）
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const url = `${window.location.origin}/api/projects/${projectId}/export?episode=${ep.number}`;
+                    void navigator.clipboard
+                      .writeText(url)
+                      .then(() => {
+                        setToast("分享链接已复制");
+                      })
+                      .catch(() => setToast("复制失败，请手动复制地址栏链接"));
+                  }}
+                  className="inline-block rounded-lg border border-zinc-600 px-4 py-1.5 text-sm font-medium text-zinc-200 transition hover:bg-zinc-800"
+                >
+                  复制分享链接
+                </button>
+                {toast && <span className="self-center text-xs text-teal-300">{toast}</span>}
               </div>
             </section>
           )}
