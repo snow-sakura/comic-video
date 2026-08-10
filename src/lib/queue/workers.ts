@@ -11,6 +11,7 @@ import { QUEUE_DEFS, type QueueName } from "@/lib/queue/queues";
 import type { GenTask } from "@/generated/prisma/client";
 import type { TaskHandle, TTSSubtitle } from "@/lib/providers/types";
 import { estimateSubtitles, probeAudioDuration } from "@/lib/tts/subtitles";
+import { recordCost } from "@/lib/cost";
 import { getImage, getStructLLM, getTTS, getVideo } from "@/lib/providers/registry";
 import { runExtractCharacters, runGenerateOutline, runGenerateEpisode } from "@/lib/agents";
 import { runStoryboardEpisode } from "@/lib/storyboard";
@@ -92,6 +93,19 @@ const scriptHandler: Handler = async (job) => {
       result = { output: out, agent: "plain" };
     }
   }
+  // 费用估算（LLM：输入按 novel 规模，输出按实际结果字符数）
+  let inputChars = input ? String(input).length : 0;
+  if (projectId) {
+    const proj = await prisma.project
+      .findUnique({ where: { id: projectId }, select: { novelText: true } })
+      .catch(() => null);
+    inputChars = proj?.novelText?.length ?? inputChars;
+  }
+  await recordCost(taskId, {
+    kind: "llm",
+    inputChars,
+    outputChars: JSON.stringify(result).length,
+  });
   await markDone(taskId, result);
   return result;
 };
@@ -142,6 +156,7 @@ const imageHandler: Handler = async (job) => {
   }
 
   const result = { imagePaths };
+  await recordCost(taskId, { kind: "image", count: imagePaths.length });
   await markDone(taskId, result);
   return result;
 };
@@ -166,6 +181,7 @@ const videoHandler: Handler = async (job) => {
     // 同步型 provider（mock）：直接返回
     const result = { videoPath: (submitHandle.result as { videoPath: string }).videoPath };
     await qcVideoOrThrow(result.videoPath, job.attemptsMade);
+    await recordCost(taskId, { kind: "video", count: 1 });
     await writeBackShot(job.data, result.videoPath);
     await markDone(taskId, result);
     return result;
@@ -190,6 +206,7 @@ const videoHandler: Handler = async (job) => {
     if (handle.status === "done") {
       const result = { videoPath: handle.result?.videoPath };
       if (result.videoPath) await qcVideoOrThrow(result.videoPath, job.attemptsMade);
+      await recordCost(taskId, { kind: "video", count: 1 });
       await writeBackShot(job.data, result.videoPath);
       await markDone(taskId, result);
       return result;
@@ -283,6 +300,15 @@ const audioHandler: Handler = async (job) => {
       })
       .catch(() => {});
   }
+  // 费用估算：按真实音频时长（分钟单价）
+  if (result.audioPath) {
+    try {
+      const dur = await probeAudioDuration(result.audioPath);
+      await recordCost(taskId, { kind: "audio", durationSec: dur });
+    } catch {
+      // 忽略
+    }
+  }
   await markDone(taskId, { ...result, subtitles });
   return { ...result, subtitles };
 };
@@ -297,6 +323,7 @@ const composeHandler: Handler = async (job) => {
   await markProcessing(taskId);
   if (!episodeId) throw new Error("缺少 episodeId");
   const result = await composeEpisode(episodeId, bgmMood);
+  await recordCost(taskId, { kind: "compose" });
   await markDone(taskId, result);
   return result;
 };

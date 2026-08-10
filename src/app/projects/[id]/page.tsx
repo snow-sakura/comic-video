@@ -8,6 +8,7 @@ import ScriptWorkbench from "@/components/script/ScriptWorkbench";
 import AssetWorkbench from "@/components/asset/AssetWorkbench";
 import StoryboardWorkbench from "@/components/storyboard/StoryboardWorkbench";
 import ComposeWorkbench from "@/components/compose/ComposeWorkbench";
+import TaskCostPanel from "@/components/TaskCostPanel";
 
 // ========== 类型 ==========
 
@@ -22,6 +23,15 @@ interface Project {
   characters: { id: string; name: string }[];
   scenes: { id: string; name: string }[];
   episodes: { id: string; title: string; number: number }[];
+  tasks: {
+    id: string;
+    label: string;
+    status: string;
+    cost: number | null;
+    error: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }[];
 }
 
 const STEPS = [
@@ -124,6 +134,9 @@ export default function WorkbenchPage() {
         <SettingsPanel onSaved={() => void loadProject()} />
       ) : (
         <>
+          {/* 任务与费用面板（P1-2） */}
+          <TaskCostPanel tasks={project.tasks} />
+
           {/* 步骤导航 */}
           <nav className="mb-6 grid grid-cols-2 gap-2 md:grid-cols-4">
             {STEPS.map((s) => (
