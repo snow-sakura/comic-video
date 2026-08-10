@@ -384,6 +384,24 @@ export default function ComposeWorkbench({
                           </div>
                         )}
                         {s.error && <p className="mt-1 text-[10px] text-red-400">{s.error.slice(0, 80)}</p>}
+                        {/* P1-5 音频试听：有配音时提供播放器 + 下载 */}
+                        {s.voicePath && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <audio
+                              controls
+                              preload="none"
+                              className="h-8 min-w-0 flex-1"
+                              src={imgUrl(s.voicePath)}
+                            />
+                            <a
+                              href={imgUrl(s.voicePath)}
+                              download
+                              className="shrink-0 text-[10px] text-teal-400/80 underline-offset-2 hover:underline"
+                            >
+                              下载
+                            </a>
+                          </div>
+                        )}
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           {s.voicePath && <span className="text-[10px] text-teal-400">配音 ✓</span>}
                           {s.subtitlePath && <span className="text-[10px] text-zinc-600">字幕 ✓</span>}
