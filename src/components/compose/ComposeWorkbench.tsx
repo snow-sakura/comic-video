@@ -80,6 +80,8 @@ export default function ComposeWorkbench({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [bgmMood, setBgmMood] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -154,6 +156,34 @@ export default function ComposeWorkbench({
       }
     },
     [projectId, load, bgmMood]
+  );
+
+  // 保存台词（P1-3 对白替换）：PATCH 后由 API 自动作废旧配音产物
+  const saveDialog = useCallback(
+    async (shotId: string) => {
+      setSaving(shotId);
+      setError(null);
+      try {
+        const res = await fetch(`/api/projects/${projectId}/shots/${shotId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dialog: draft[shotId] ?? "" }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(body.error ?? "保存失败");
+        await load();
+        setDraft((d) => {
+          const next = { ...d };
+          delete next[shotId];
+          return next;
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "保存失败");
+      } finally {
+        setSaving(null);
+      }
+    },
+    [projectId, draft, load]
   );
 
   if (loading) {
@@ -340,34 +370,52 @@ export default function ComposeWorkbench({
                           <span className="ml-auto text-zinc-600">{s.duration}s</span>
                         </div>
                         <p className="mt-1.5 line-clamp-2 text-xs text-zinc-300">{s.action}</p>
-                        {s.dialog && (
-                          <p className="mt-1 line-clamp-2 text-xs">
-                            <span className="font-medium text-amber-300/90">{s.dialogChar}</span>
-                            <span className="ml-1 text-zinc-400">「{s.dialog}」</span>
-                          </p>
+                        {s.dialog !== null && (
+                          <div className="mt-1 flex items-start gap-1.5">
+                            {s.dialogChar && (
+                              <span className="mt-1 shrink-0 text-xs font-medium text-amber-300/90">{s.dialogChar}</span>
+                            )}
+                            <input
+                              value={draft[s.id] ?? s.dialog ?? ""}
+                              onChange={(e) => setDraft((d) => ({ ...d, [s.id]: e.target.value }))}
+                              placeholder="台词"
+                              className="min-w-0 flex-1 rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-xs text-zinc-300 focus:border-violet-600 focus:outline-none"
+                            />
+                          </div>
                         )}
                         {s.error && <p className="mt-1 text-[10px] text-red-400">{s.error.slice(0, 80)}</p>}
                         <div className="mt-2 flex flex-wrap items-center gap-1.5">
                           {s.voicePath && <span className="text-[10px] text-teal-400">配音 ✓</span>}
                           {s.subtitlePath && <span className="text-[10px] text-zinc-600">字幕 ✓</span>}
-                          {!s.videoPath && s.imagePath && s.status !== "VIDEO_GENERATING" && (
-                            <button
-                              onClick={() => void post("video", ep.number, s.id)}
-                              disabled={genDisabled}
-                              className="ml-auto rounded-md bg-violet-600 px-2 py-1 text-[11px] font-medium text-white transition hover:bg-violet-500 disabled:opacity-40"
-                            >
-                              生成视频
-                            </button>
-                          )}
-                          {s.videoPath && !s.voicePath && s.dialog && s.status !== "VOICE_GENERATING" && (
-                            <button
-                              onClick={() => void post("voice", ep.number, s.id)}
-                              disabled={genDisabled}
-                              className="ml-auto rounded-md border border-fuchsia-700/60 px-2 py-1 text-[11px] text-fuchsia-300 transition hover:bg-fuchsia-950/40 disabled:opacity-40"
-                            >
-                              配音
-                            </button>
-                          )}
+                          <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                            {s.dialog !== null && (draft[s.id] ?? s.dialog ?? "") !== (s.dialog ?? "") && (
+                              <button
+                                onClick={() => void saveDialog(s.id)}
+                                disabled={saving === s.id || genDisabled}
+                                className="rounded-md border border-amber-700/60 px-2 py-1 text-[11px] text-amber-300 transition hover:bg-amber-950/40 disabled:opacity-40"
+                              >
+                                {saving === s.id ? "保存中…" : "保存台词"}
+                              </button>
+                            )}
+                            {s.imagePath && s.status !== "VIDEO_GENERATING" && (
+                              <button
+                                onClick={() => void post("video", ep.number, s.id)}
+                                disabled={genDisabled}
+                                className="rounded-md bg-violet-600 px-2 py-1 text-[11px] font-medium text-white transition hover:bg-violet-500 disabled:opacity-40"
+                              >
+                                {s.videoPath ? "重新生成" : "生成视频"}
+                              </button>
+                            )}
+                            {s.dialog && (s.videoPath || s.imagePath) && s.status !== "VOICE_GENERATING" && (
+                              <button
+                                onClick={() => void post("voice", ep.number, s.id)}
+                                disabled={genDisabled}
+                                className="rounded-md border border-fuchsia-700/60 px-2 py-1 text-[11px] text-fuchsia-300 transition hover:bg-fuchsia-950/40 disabled:opacity-40"
+                              >
+                                {s.voicePath ? "重新配音" : "配音"}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
