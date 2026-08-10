@@ -3,7 +3,7 @@
  * storage/
  *   novels/ characters/ scenes/ props/ shots/ videos/ audio/ subs/ temp/
  */
-import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, existsSync, readFileSync, unlinkSync } from "node:fs";
 import { join, resolve, extname } from "node:path";
 import { nanoid } from "nanoid";
 import { loadEnv } from "@/lib/env";
@@ -80,6 +80,16 @@ export function toDataUri(relPath: string, mime = "image/png"): string {
 /** 判断文件是否存在 */
 export function fileExists(relPath: string): boolean {
   return existsSync(resolve(STORAGE_ROOT, relPath));
+}
+
+/** 删除相对路径文件（不存在时静默） */
+export function removeFile(relPath: string): boolean {
+  try {
+    unlinkSync(resolve(STORAGE_ROOT, relPath));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** 下载 URL 到存储，返回相对路径 */

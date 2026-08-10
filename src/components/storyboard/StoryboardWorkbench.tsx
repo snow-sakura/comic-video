@@ -177,6 +177,62 @@ export default function StoryboardWorkbench({
     [projectId, load]
   );
 
+  // 手动分镜：添加镜头（P1-4）
+  const [manual, setManual] = useState({ sceneName: "", action: "", dialog: "", dialogChar: "", duration: "5" });
+  const addManualShots = useCallback(async () => {
+    if (!selected) return;
+    if (!manual.action.trim() && !manual.dialog.trim()) {
+      setError("请至少填写动作或台词");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/storyboard`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          stage: "manual",
+          episodeNumber: selected,
+          shots: [{
+            sceneName: manual.sceneName.trim() || undefined,
+            action: manual.action.trim() || undefined,
+            dialog: manual.dialog.trim() || undefined,
+            dialogChar: manual.dialogChar.trim() || undefined,
+            duration: Number(manual.duration) || 5,
+          }],
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "添加失败");
+      setManual({ sceneName: "", action: "", dialog: "", dialogChar: "", duration: "5" });
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "添加失败");
+    } finally {
+      setBusy(false);
+    }
+  }, [projectId, selected, manual, load]);
+
+  // 删除镜头（P1-4）
+  const deleteShot = useCallback(
+    async (shotId: string) => {
+      if (!window.confirm("删除该镜头？其分镜图/视频/配音将被一并清理。")) return;
+      setBusy(true);
+      setError(null);
+      try {
+        const res = await fetch(`/api/projects/${projectId}/shots/${shotId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("删除失败");
+        await load();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "删除失败");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [projectId, load]
+  );
+
   if (loading) {
     return <div className="flex items-center justify-center py-16 text-sm text-zinc-500">加载中…</div>;
   }
@@ -248,6 +304,55 @@ export default function StoryboardWorkbench({
 
       {ep && (
         <>
+          {/* 手动分镜（P1-4） */}
+          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold">手动分镜</h3>
+                <p className="mt-0.5 text-xs text-zinc-500">不依赖 AI，手动添加镜头（场景 / 动作 / 台词），添加后自动组装提示词并锁定资产参考图。</p>
+              </div>
+              <button
+                onClick={() => void addManualShots()}
+                disabled={busy}
+                className="rounded-lg bg-violet-600 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-violet-500 disabled:opacity-40"
+              >
+                添加镜头
+              </button>
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-5">
+              <input
+                value={manual.sceneName}
+                onChange={(e) => setManual((m) => ({ ...m, sceneName: e.target.value }))}
+                placeholder="场景名（如：茶水间）"
+                className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 focus:border-violet-600 focus:outline-none"
+              />
+              <input
+                value={manual.action}
+                onChange={(e) => setManual((m) => ({ ...m, action: e.target.value }))}
+                placeholder="画面动作（必填或填台词）"
+                className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 focus:border-violet-600 focus:outline-none md:col-span-2"
+              />
+              <input
+                value={manual.dialog}
+                onChange={(e) => setManual((m) => ({ ...m, dialog: e.target.value }))}
+                placeholder="台词（可选）"
+                className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 focus:border-violet-600 focus:outline-none md:col-span-1"
+              />
+              <input
+                value={manual.dialogChar}
+                onChange={(e) => setManual((m) => ({ ...m, dialogChar: e.target.value }))}
+                placeholder="角色名（可选）"
+                className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 focus:border-violet-600 focus:outline-none"
+              />
+              <input
+                value={manual.duration}
+                onChange={(e) => setManual((m) => ({ ...m, duration: e.target.value }))}
+                placeholder="时长s"
+                className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-zinc-300 focus:border-violet-600 focus:outline-none"
+              />
+            </div>
+          </section>
+
           {/* 操作条 */}
           <section className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/40 p-4">
             <button
@@ -337,6 +442,14 @@ export default function StoryboardWorkbench({
                               </button>
                             </>
                           )}
+                          <button
+                            onClick={() => void deleteShot(s.id)}
+                            disabled={busy}
+                            title="删除镜头"
+                            className="rounded-md border border-red-900/60 px-2 py-1 text-[11px] text-red-400/80 transition hover:bg-red-950/40 disabled:opacity-40"
+                          >
+                            删除
+                          </button>
                         </div>
                       </div>
                     </div>
