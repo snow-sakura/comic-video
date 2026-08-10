@@ -1,0 +1,240 @@
+// AI漫剧创作平台 数据模型
+// Provider: PostgreSQL
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ========== 枚举 ==========
+
+enum ProjectStatus {
+  DRAFT
+  SCRIPTING
+  ASSETING
+  STORYBOARDING
+  RENDERING
+  DONE
+}
+
+enum AssetType {
+  CHARACTER
+  SCENE
+  PROP
+  STYLE
+}
+
+enum AssetStatus {
+  DRAFTING
+  REVIEWING
+  APPROVED
+  REJECTED
+}
+
+enum TaskType {
+  LLM
+  IMAGE
+  VIDEO
+  TTS
+  MUSIC
+  SFX
+  COMPOSE
+}
+
+enum TaskStatus {
+  QUEUED
+  PROCESSING
+  DONE
+  FAILED
+  REJECTED
+}
+
+enum ShotStatus {
+  PENDING // 待生成
+  PROMPT_READY // 提示词就绪
+  IMAGE_GENERATING
+  IMAGE_DONE
+  IMAGE_FAILED
+  VIDEO_GENERATING
+  VIDEO_DONE
+  VIDEO_FAILED
+  VOICE_GENERATING
+  VOICE_DONE
+  VOICE_FAILED
+  COMPOSED
+  REJECTED
+}
+
+// ========== 核心模型 ==========
+
+/// 项目（一部漫剧）
+model Project {
+  id        String        @id @default(cuid())
+  title     String
+  status    ProjectStatus @default(DRAFT)
+  style     Json? // 全局风格锁定：{ styleDesc, styleRefImageId }
+  novelPath String? // 上传小说文件路径
+  novelText String? @db.Text // 解析后的纯文本
+  novelMeta Json? // { chapters: [{index,title,start,end}] }
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  scripts    Script[]
+  characters Character[]
+  scenes     Scene[]
+  assets     Asset[]
+  episodes   Episode[]
+  tasks      GenTask[]
+
+  @@index([status])
+}
+
+/// 剧本（含梗概与结构化内容，支持版本）
+model Script {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  logline   String? // 核心梗概（一句话）
+  content   Json? // 结构化剧本：{ episodes: [{ number, title, hookEnd, scenes: [{ sceneId?, location, time, characters, action, dialogs: [{char, text, emotion}] }] }] }
+  status    String   @default("draft") // draft | reviewing | approved
+  approved  Boolean  @default(false)
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+/// 角色（人设卡 + 定妆照）
+model Character {
+  id           String      @id @default(cuid())
+  projectId    String
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  role         String // 剧作功能: protagonist | supporting | antagonist | utility
+  appearance   Json // 外貌: { hair, costume, facialMarkers, body, style }
+  personality  Json // 性格: { habits, emotionalReactions, speechStyle, psychology }
+  costume      Json? // 场景化变装列表
+  refImageIds  String[] // 精选定妆照(相对路径)
+  voiceId      String? // TTS音色映射
+  voiceName    String?
+  status       AssetStatus @default(DRAFTING)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@index([projectId])
+}
+
+/// 场景（环境空镜）
+model Scene {
+  id          String      @id @default(cuid())
+  projectId   String
+  project     Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String // 如"雨夜小巷"
+  description String? @db.Text
+  mood        String? // 情绪基调（影响灯光/BGM）
+  refImageIds String[] // 标准空镜图
+  status      AssetStatus @default(DRAFTING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([projectId])
+}
+
+/// 通用资产（道具/风格等）
+model Asset {
+  id        String    @id @default(cuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type      AssetType
+  name      String
+  imageIds  String[]
+  meta      Json?
+  status    AssetStatus @default(DRAFTING)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([projectId, type])
+}
+
+/// 集
+model Episode {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  number    Int
+  title     String?
+  hookEnd   String? // 集尾悬念
+  status    String   @default("draft")
+  finalPath String? // 成片视频路径
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shots Shot[]
+
+  @@unique([projectId, number])
+}
+
+/// 分镜（核心工作单元）
+model Shot {
+  id           String     @id @default(cuid())
+  episodeId    String
+  episode      Episode    @relation(fields: [episodeId], references: [id], onDelete: Cascade)
+  sequence     Int // 镜头序号
+  sceneName    String? // 关联场景名
+  sceneId      String?
+  camera       Json // { angle, movement, shotSize }
+  action       String? @db.Text // 画面动作描述
+  dialog       String? // 台词
+  dialogChar   String? // 说话角色名
+  dialogEmotion String? // 台词情绪
+  duration     Float // 目标时长(秒)
+  prompt7      Json? // 提示词7维
+  finalPrompt  String? @db.Text // 组装后的完整提示词
+  refImages    String[] // 出图参考图（锁定角色定妆照/场景空镜，相对路径）
+  imagePath    String? // 分镜图
+  videoPath    String? // 视频片段
+  voicePath    String? // 配音
+  subtitlePath String? // 该镜字幕
+  status       ShotStatus @default(PENDING)
+  retries      Int        @default(0)
+  error        String? @db.Text
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([episodeId, sequence])
+}
+
+/// 供应商配置（KV存储，设置页可写，优先于环境变量）
+model ProviderSetting {
+  key       String   @id // 如: ark.apiKey, kling.apiKey, llm.scriptProvider, image.provider ...
+  value     String   @db.Text
+  updatedAt DateTime @updatedAt
+}
+
+/// 所有AI任务统一追踪（含费用）
+model GenTask {
+  id             String     @id @default(cuid())
+  projectId      String?
+  project        Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  label          String? // 任务描述（UI 展示），如 "剧本工坊·角色提炼"
+  type           TaskType
+  provider       String // deepseek | doubao | seedream | kling | vidu | cosyvoice | minimax | ...
+  model          String
+  refType        String? // shot | character | scene | asset | episode
+  refId          String?
+  status         TaskStatus @default(QUEUED)
+  providerTaskId String? // 平台侧任务ID
+  input          Json? // 请求参数快照（费用估算）
+  cost           Float? // 估算费用(元)
+  error          String? @db.Text
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@index([status])
+  @@index([projectId])
+}

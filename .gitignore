@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# 本地生成资产
+/storage
+.playwright-mcp/
+.idea/

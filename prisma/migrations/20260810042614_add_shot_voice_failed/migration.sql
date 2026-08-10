@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "ShotStatus" ADD VALUE 'VOICE_FAILED';
