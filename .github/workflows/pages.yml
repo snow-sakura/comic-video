@@ -29,6 +29,10 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+        with:
+          # 自动启用 GitHub Pages（由 workflow 的 pages:write 权限驱动，
+          # 不依赖个人 token 权限），source 设为 GitHub Actions 构建模式
+          enablement: true
 
       - name: Upload demo artifact
         uses: actions/upload-pages-artifact@v3
