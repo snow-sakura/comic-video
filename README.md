@@ -2,7 +2,7 @@
 
 小说 → 剧本 → 资产 → 分镜 → 视频 的 AI 漫剧创作流水线（单用户本地工具，纯云端 API + 国内生态）。
 
-> 在线体验：<https://snow-sakura.github.io/comic-video/demo/>（纯静态演示，零依赖零数据库，数据为内置样例；源码见 `demo/index.html`）
+> 在线体验：仓库内 `demo/index.html`（纯静态单文件，零依赖零数据库，数据为内置样例）。克隆后直接用浏览器打开该文件，或在本地任意静态服务器（如 `npx serve demo`）下访问，即可完整体验四步流水线交互。
 
 ## 界面特性
 
@@ -87,8 +87,7 @@ src/components/asset/AssetWorkbench.tsx   # 资产工厂工作台
 src/components/storyboard/StoryboardWorkbench.tsx  # 分镜车间工作台
 src/components/compose/ComposeWorkbench.tsx        # 视频合成厂工作台
 src/components/SettingsPanel.tsx          # 设置面板（五分组 TABS）
-demo/index.html   # 纯静态在线体验 demo（GitHub Pages 托管）
-.github/workflows/pages.yml  # demo → GitHub Pages 自动部署
+demo/index.html   # 纯静态在线体验 demo（浏览器直接打开即可，零依赖零数据库）
 ```
 
 ## 里程碑
