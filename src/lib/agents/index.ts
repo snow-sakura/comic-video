@@ -9,7 +9,7 @@
 import { prisma } from "@/lib/db";
 import { getScriptLLM } from "@/lib/providers/registry";
 import type { LLMMessage } from "@/lib/providers/types";
-import { parseNovel, chapterText, chaptersDigest, heuristicCharacters, type NovelMeta } from "@/lib/novel/parser";
+import { chapterText, chaptersDigest, heuristicCharacters, type NovelMeta } from "@/lib/novel/parser";
 import { safeParseJson, asString, asStringArray, asRecord } from "@/lib/agents/json";
 import {
   buildExtractPrompt,

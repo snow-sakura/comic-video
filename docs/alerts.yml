@@ -1,0 +1,77 @@
+# Prometheus 告警规则
+# 配合 prometheus.yml 使用
+
+groups:
+  - name: comic-video-queue
+    rules:
+      # 队列积压告警
+      - alert: QueueBacklogHigh
+        expr: comic_video_queue_jobs{status="waiting"} > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "队列积压过多 ({{ $labels.queue }})"
+          description: "队列 {{ $labels.queue }} 等待任务数 {{ $value }}，持续 5 分钟超过 50"
+
+      # 队列积压严重告警
+      - alert: QueueBacklogCritical
+        expr: comic_video_queue_jobs{status="waiting"} > 200
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "队列积压严重 ({{ $labels.queue }})"
+          description: "队列 {{ $labels.queue }} 等待任务数 {{ $value }}，持续 2 分钟超过 200"
+
+      # 失败任务告警
+      - alert: QueueFailedJobsHigh
+        expr: increase(comic_video_queue_jobs{status="failed"}[1h]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "失败任务数过多 ({{ $labels.queue }})"
+          description: "队列 {{ $labels.queue }} 过去 1 小时新增失败任务 {{ $value }} 个"
+
+      # Worker 离线告警
+      - alert: WorkerOffline
+        expr: comic_video_worker_up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Worker 离线 ({{ $labels.queue }})"
+          description: "队列 {{ $labels.queue }} 的 Worker 已离线超过 1 分钟"
+
+      # 积压率过高告警
+      - alert: QueueBacklogRatioHigh
+        expr: comic_video_queue_backlog_ratio > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "队列积压率过高 ({{ $labels.queue }})"
+          description: "队列 {{ $labels.queue }} 积压率 {{ $value }}（waiting/concurrency），建议调高并发数"
+
+  - name: comic-video-redis
+    rules:
+      # Redis 连接数告警
+      - alert: RedisConnectionsHigh
+        expr: comic_video_redis_connected_clients > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis 连接数过多"
+          description: "Redis 客户端连接数 {{ $value }}，持续 5 分钟超过 80"
+
+      # Redis 内存告警
+      - alert: RedisMemoryHigh
+        expr: comic_video_redis_used_memory_bytes > 512000000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis 内存使用过高"
+          description: "Redis 已用内存 {{ $value | humanize1024 }}，超过 512MB"

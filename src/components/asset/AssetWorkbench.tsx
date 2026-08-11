@@ -91,7 +91,8 @@ export default function AssetWorkbench({
   }, [projectId]);
 
   useEffect(() => {
-    void load();
+    const t = setTimeout(() => void load(), 0);
+    return () => clearTimeout(t);
   }, [load]);
 
   // 运行中任务轮询
@@ -113,7 +114,7 @@ export default function AssetWorkbench({
         pollRef.current = null;
       }
     };
-  }, [data?.runningTask?.id, load]);
+  }, [data?.runningTask, load]);
 
   const generate = useCallback(
     async (kind: string, refId?: string, extra?: Record<string, string>) => {

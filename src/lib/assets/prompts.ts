@@ -30,7 +30,7 @@ export interface DesignScene {
 export function styleAnchor(projectStyle?: Record<string, unknown> | null): string {
   const s = projectStyle;
   if (s && typeof s.styleDesc === "string" && s.styleDesc) return s.styleDesc;
-  return "现代都市言情风，电影级光影，精致唯美，干净利落的构图，高细节，2.5D 动漫风格";
+  return "现代都市言情风，电影级光影，精致唯美，干净利落的构图，高细节，2.5D 动漫风格，柔和的色彩层次，背景虚化浅景深";
 }
 
 /** 角色定妆照 prompt（标准正面半身像 + 姿态变体说明） */
@@ -47,7 +47,9 @@ export function characterDesignPrompt(c: DesignCharacter, anchor: string, angle:
     `角色身份：${c.role === "protagonist" ? "主角" : c.role === "antagonist" ? "反派" : c.role === "supporting" ? "配角" : "功能性角色"}`,
     `整体风格：${c.appearance.style}`,
     `全局画风：${anchor}`,
-    "纯色或浅色干净背景，人物完整可见，无文字，无水印",
+    "纯色或浅色干净背景，人物完整可见，柔和顶光 + 正面补光，人物五官清晰对称，肢体比例自然",
+    "服装材质细节明确（褶皱/纹理/配饰），发型发丝层次清晰",
+    "无文字，无水印，无多余人物，无 logo",
   ].join("\n");
 }
 
@@ -58,6 +60,7 @@ export function sceneDesignPrompt(s: DesignScene, anchor: string): string {
     `场景空镜：${s.name}${mood}`,
     s.description ? `画面描述：${s.description}` : "",
     "无人物的纯环境镜头，光线与色调契合氛围，电影级构图",
+    "纵深层次清晰：前景/中景/背景三层分明，透视准确，材质细节丰富",
     `全局画风：${anchor}`,
     "无文字，无水印",
   ]

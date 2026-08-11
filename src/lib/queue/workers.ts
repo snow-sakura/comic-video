@@ -25,11 +25,10 @@ async function markProcessing(taskId: string): Promise<void> {
   await prisma.genTask.update({ where: { id: taskId }, data: { status: "PROCESSING" } }).catch(() => {});
 }
 
-async function markDone(taskId: string, result: Record<string, unknown>): Promise<void> {
+async function markDone(taskId: string): Promise<void> {
   await prisma.genTask
     .update({ where: { id: taskId }, data: { status: "DONE", error: null } })
     .catch(() => {});
-  return;
 }
 
 async function markFailed(taskId: string, error: string): Promise<void> {
@@ -106,7 +105,7 @@ const scriptHandler: Handler = async (job) => {
     inputChars,
     outputChars: JSON.stringify(result).length,
   });
-  await markDone(taskId, result);
+  await markDone(taskId);
   return result;
 };
 
@@ -114,58 +113,69 @@ const scriptHandler: Handler = async (job) => {
  *  refType/refId: 资产生成时回写到 Character/Scene/Asset 表
  *  shotId: 分镜出图时回写到 Shot 表 */
 const imageHandler: Handler = async (job) => {
-  const { taskId, prompt, size, refImages, count, aspectRatio, negativePrompt, refType, refId, shotId, category } = job.data;
+  const { taskId, prompt, size, refImages, count, aspectRatio, negativePrompt, refType, refId, shotId } = job.data;
+  const shotIdStr = shotId ? String(shotId) : undefined;
   await markProcessing(taskId);
-  const image = await getImage();
-  const handle = await image.generate({
-    prompt: String(prompt ?? ""),
-    size: size as never,
-    refImages: (refImages as string[] | undefined) ?? [],
-    count: count ? Number(count) : undefined,
-    aspectRatio: aspectRatio as never,
-    negativePrompt: negativePrompt ? String(negativePrompt) : undefined,
-  });
-  if (handle.status === "failed") throw new Error(handle.error ?? "图像生成失败");
-  const imagePaths = handle.result?.imagePaths ?? [];
+  try {
+    const image = await getImage();
+    const handle = await image.generate({
+      prompt: String(prompt ?? ""),
+      size: size as never,
+      refImages: (refImages as string[] | undefined) ?? [],
+      count: count ? Number(count) : undefined,
+      aspectRatio: aspectRatio as never,
+      negativePrompt: negativePrompt ? String(negativePrompt) : undefined,
+    });
+    if (handle.status === "failed") throw new Error(handle.error ?? "图像生成失败");
+    const imagePaths = handle.result?.imagePaths ?? [];
 
-  // 资产生成 → 回写资源表（存相对路径，供后续作为参考图）
-  if (refId && imagePaths.length > 0) {
-    if (refType === "character") {
-      await prisma.character
-        .update({ where: { id: refId }, data: { refImageIds: { push: imagePaths } } })
-        .catch(() => {});
-    } else if (refType === "scene") {
-      await prisma.scene
-        .update({ where: { id: refId }, data: { refImageIds: { push: imagePaths } } })
-        .catch(() => {});
-    } else if (refType === "asset") {
-      await prisma.asset
-        .update({ where: { id: refId }, data: { imageIds: { push: imagePaths } } })
+    // 资产生成 → 回写资源表（存相对路径，供后续作为参考图）
+    if (refId && imagePaths.length > 0) {
+      if (refType === "character") {
+        await prisma.character
+          .update({ where: { id: refId }, data: { refImageIds: { push: imagePaths } } })
+          .catch(() => {});
+      } else if (refType === "scene") {
+        await prisma.scene
+          .update({ where: { id: refId }, data: { refImageIds: { push: imagePaths } } })
+          .catch(() => {});
+      } else if (refType === "asset") {
+        await prisma.asset
+          .update({ where: { id: refId }, data: { imageIds: { push: imagePaths } } })
+          .catch(() => {});
+      }
+    }
+
+    // 分镜出图 → 回写 Shot
+    if (shotIdStr && imagePaths.length > 0) {
+      await prisma.shot
+        .update({
+          where: { id: shotIdStr },
+          data: { imagePath: imagePaths[0], status: "IMAGE_DONE" },
+        })
         .catch(() => {});
     }
-  }
 
-  // 分镜出图 → 回写 Shot
-  if (shotId && imagePaths.length > 0) {
-    await prisma.shot
-      .update({
-        where: { id: shotId },
-        data: { imagePath: imagePaths[0], status: "IMAGE_DONE" },
-      })
-      .catch(() => {});
+    const result = { imagePaths };
+    await recordCost(taskId, { kind: "image", count: imagePaths.length });
+    await markDone(taskId);
+    return result;
+  } catch (e) {
+    // 出图失败回写 Shot 为 IMAGE_FAILED，避免分镜卡片永远停留在"生成中"
+    if (shotIdStr) {
+      await prisma.shot
+        .update({ where: { id: shotIdStr }, data: { status: "IMAGE_FAILED" } })
+        .catch(() => {});
+    }
+    throw e;
   }
-
-  const result = { imagePaths };
-  await recordCost(taskId, { kind: "image", count: imagePaths.length });
-  await markDone(taskId, result);
-  return result;
 };
 
 /** video: 视频任务（payload: { shotId, imagePath, prompt, refImages, duration, tailImagePath }）
  *  可灵为异步平台任务：submit → 保存 providerTaskId → 轮询 getTask 直至完成
  *  shotId: 分镜视频生成时回写到 Shot 表（videoPath + VIDEO_DONE） */
 const videoHandler: Handler = async (job) => {
-  const { taskId, shotId, imagePath, prompt, refImages, duration, tailImagePath } = job.data;
+  const { taskId, imagePath, prompt, refImages, duration, tailImagePath } = job.data;
   await markProcessing(taskId);
   const video = await getVideo();
 
@@ -183,7 +193,7 @@ const videoHandler: Handler = async (job) => {
     await qcVideoOrThrow(result.videoPath, job.attemptsMade);
     await recordCost(taskId, { kind: "video", count: 1 });
     await writeBackShot(job.data, result.videoPath);
-    await markDone(taskId, result);
+    await markDone(taskId);
     return result;
   }
   if (submitHandle.status === "failed") {
@@ -208,7 +218,7 @@ const videoHandler: Handler = async (job) => {
       if (result.videoPath) await qcVideoOrThrow(result.videoPath, job.attemptsMade);
       await recordCost(taskId, { kind: "video", count: 1 });
       await writeBackShot(job.data, result.videoPath);
-      await markDone(taskId, result);
+      await markDone(taskId);
       return result;
     }
     if (handle.status === "failed") {
@@ -309,7 +319,7 @@ const audioHandler: Handler = async (job) => {
       // 忽略
     }
   }
-  await markDone(taskId, { ...result, subtitles });
+  await markDone(taskId);
   return { ...result, subtitles };
 };
 
@@ -324,7 +334,7 @@ const composeHandler: Handler = async (job) => {
   if (!episodeId) throw new Error("缺少 episodeId");
   const result = await composeEpisode(episodeId, bgmMood);
   await recordCost(taskId, { kind: "compose" });
-  await markDone(taskId, result);
+  await markDone(taskId);
   return result;
 };
 
@@ -360,10 +370,32 @@ export function startWorker(name: QueueName): Worker {
     {
       connection: getConnection(),
       concurrency: QUEUE_DEFS[name].concurrency,
+      // stalled job 检测：Worker 每 stalledInterval ms 向 Redis 续期，
+      // 超过 stalledInterval 未续期视为 stalled（进程崩溃/OOM/kill -9），
+      // 由其他 Worker 重投（maxStalledCount 次后永久失败）。
+      // 配合 worker.on("failed") 兜底，确保崩溃后任务不卡 PROCESSING。
+      stalledInterval: 30000, // 30s 检测一次（默认 30s）
+      maxStalledCount: 1, // 重投 1 次后永久失败（视频任务昂贵，避免无限重投）
     }
   );
   worker.on("failed", (job, err) => {
     console.error(`[queue:${name}] job ${job?.id} failed: ${err.message}`);
+    // 兜底：进程崩溃（OOM/kill -9）后 stalled job 最终失败时，processor 的 catch
+    // 块不会执行，此处用条件更新确保 GenTask 不会卡在 PROCESSING（仅 QUEUED/PROCESSING → FAILED）
+    const { taskId } = (job?.data ?? {}) as { taskId?: string };
+    if (taskId) {
+      prisma.genTask
+        .updateMany({
+          where: { id: taskId, status: { in: ["QUEUED", "PROCESSING"] } },
+          data: { status: "FAILED", error: err.message },
+        })
+        .catch(() => {});
+    }
+  });
+  // Worker 级错误（如 Redis 断连）必须监听，否则 EventEmitter 无 listener 会触发
+  // uncaughtException 导致进程崩溃
+  worker.on("error", (err) => {
+    console.error(`[queue:${name}] worker error: ${err.message}`);
   });
   workers.set(name, worker);
   return worker;

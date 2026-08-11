@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 漫剧工坊 · 在线体验 Demo</title>
+<meta name="description" content="AI 漫剧工坊 — 小说 → 剧本 → 资产 → 分镜 → 视频 全流程 AI 漫剧创作流水线的纯前端交互演示（GitHub Pages 托管，零依赖零数据库）。">
+<!-- 纯静态单文件 Demo：不引入任何外部依赖 / 插件 / 数据库，数据全部内存模拟 -->
+<style>
+  :root {
+    --bg: #f6f2ea;
+    --card: #fdfbf7;
+    --ink: #3e372e;
+    --ink-2: #5c5347;
+    --ink-3: #938878;
+    --line: #eae3d6;
+    --line-2: #d8cfbf;
+    --tea: #5a7c4d;      /* 抹茶绿 · 主色 */
+    --tea-light: #93b583;
+    --tea-bg: #eaf0e1;
+    --brick: #a9503e;    /* 砖红 */
+    --brick-bg: #f6e4de;
+    --moss: #527b44;     /* 苔绿 */
+    --moss-bg: #e4efda;
+    --apricot: #b0853a;  /* 暖杏 */
+    --apricot-bg: #f7ebd2;
+    --sky: #4e7e9e;
+    --sky-bg: #e3edf4;
+    --radius: 14px;
+    --shadow: 0 2px 10px rgba(94, 82, 62, 0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background:
+      radial-gradient(rgba(110, 143, 94, 0.05) 1px, transparent 1px) 0 0 / 22px 22px,
+      linear-gradient(180deg, #faf7f0 0%, #f4efe4 100%);
+    background-color: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  /* ===== 头部 ===== */
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-badge {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: linear-gradient(135deg, #6b8f5b, #5a7c4d);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; box-shadow: var(--shadow);
+  }
+  .logo h1 { font-size: 19px; letter-spacing: 0.5px; }
+  .logo p { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+  .head-actions { display: flex; gap: 8px; }
+  .btn {
+    border: 1px solid var(--line-2); background: var(--card); color: var(--ink-2);
+    padding: 8px 14px; border-radius: 10px; font-size: 13px; cursor: pointer;
+    transition: all 0.15s; text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+  }
+  .btn:hover { border-color: var(--tea-light); color: var(--tea); }
+  .btn-primary { background: var(--tea); border-color: var(--tea); color: #fff; font-weight: 600; }
+  .btn-primary:hover { background: #6b8f5b; border-color: #6b8f5b; color: #fff; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 8px; }
+
+  /* ===== 演示提示条 ===== */
+  .notice {
+    background: var(--apricot-bg); border: 1px solid #e3c98f; color: #7a5f28;
+    border-radius: var(--radius); padding: 10px 14px; font-size: 12.5px; margin-bottom: 16px;
+    display: flex; gap: 8px; align-items: flex-start; line-height: 1.6;
+  }
+  .notice b { color: #6b5220; }
+
+  /* ===== 步骤 TABS ===== */
+  nav.steps {
+    display: flex; gap: 4px; background: rgba(246, 242, 234, 0.8);
+    border: 1px solid var(--line); border-radius: 12px; padding: 5px; margin-bottom: 18px;
+  }
+  nav.steps button {
+    flex: 1; border: 0; background: transparent; cursor: pointer;
+    padding: 9px 6px; border-radius: 9px; text-align: left;
+    color: var(--ink-3); transition: all 0.15s; font-size: 12.5px;
+  }
+  nav.steps button small { display: block; font-size: 10.5px; margin-top: 2px; opacity: 0.85; }
+  nav.steps button:hover { background: var(--card); color: var(--ink-2); }
+  nav.steps button.active { background: var(--tea); color: #fff; box-shadow: var(--shadow); }
+  nav.steps button.active small { color: rgba(255,255,255,0.75); }
+  .steps-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; }
+  .steps-foot .pos { font-size: 12px; color: var(--ink-3); }
+
+  /* ===== 卡片 ===== */
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; margin-bottom: 14px; box-shadow: var(--shadow); }
+  .card h3 { font-size: 15px; margin-bottom: 4px; }
+  .card .sub { font-size: 12px; color: var(--ink-3); margin-bottom: 12px; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+  .card-head h3 { margin-bottom: 0; }
+
+  .tag { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 99px; border: 1px solid; margin-right: 4px; }
+  .tag-tea { color: var(--moss); background: var(--moss-bg); border-color: #b9cfa2; }
+  .tag-brick { color: var(--brick); background: var(--brick-bg); border-color: #d9a08e; }
+  .tag-amber { color: var(--apricot); background: var(--apricot-bg); border-color: #e3c98f; }
+  .tag-sky { color: var(--sky); background: var(--sky-bg); border-color: #bcd2e0; }
+  .tag-line { color: var(--ink-3); background: #f3eee4; border-color: var(--line); }
+
+  /* ===== 网格 ===== */
+  .grid { display: grid; gap: 12px; }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+  /* ===== 角色卡 ===== */
+  .char-card { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+  .char-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .avatar {
+    width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+    background: linear-gradient(135deg, #eaf0e1, #d9e4c9); border: 1px solid #b9cca4;
+  }
+  .char-top b { font-size: 14px; }
+  .char-top .role { font-size: 11px; color: var(--ink-3); }
+  .char-desc { font-size: 12px; color: var(--ink-2); line-height: 1.7; }
+  .char-desc li { list-style: none; }
+  .char-desc li::before { content: "· "; color: var(--tea-light); }
+
+  /* ===== 分镜 ===== */
+  .shot { display: flex; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; background: var(--card); }
+  .shot-img {
+    width: 86px; height: 86px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 34px;
+  }
+  .shot-body { flex: 1; min-width: 0; }
+  .shot-body .cam { font-size: 11px; color: var(--ink-3); margin-bottom: 3px; }
+  .shot-body .act { font-size: 12.5px; color: var(--ink-2); line-height: 1.6; }
+  .shot-body .dlg { font-size: 12.5px; color: var(--tea); margin-top: 5px; line-height: 1.5; }
+  .shot-body .dur { font-size: 11px; color: var(--ink-3); margin-top: 4px; }
+
+  /* ===== 场景/资产图占位 ===== */
+  .asset-card { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--card); }
+  .asset-visual {
+    height: 110px; display: flex; align-items: center; justify-content: center;
+    font-size: 40px; position: relative;
+  }
+  .asset-name { padding: 8px 12px; font-size: 12.5px; font-weight: 600; display: flex; justify-content: space-between; }
+  .asset-name span:last-child { color: var(--ink-3); font-weight: 400; font-size: 11px; }
+  .g1 { background: linear-gradient(135deg, #fdf6ea, #f7e9d2); }
+  .g2 { background: linear-gradient(135deg, #edf4e4, #dbe8cc); }
+  .g3 { background: linear-gradient(135deg, #eef1f6, #dce4ef); }
+  .g4 { background: linear-gradient(135deg, #fbeef0, #f3d9dd); }
+  .g5 { background: linear-gradient(135deg, #f4efe8, #e6dccb); }
+
+  /* ===== 视频占位 ===== */
+  .video-stage {
+    position: relative; border-radius: var(--radius); overflow: hidden;
+    aspect-ratio: 16/9; background: #1f1b16; display: flex; align-items: center; justify-content: center;
+  }
+  .video-stage .scene-art { font-size: 64px; filter: drop-shadow(0 4px 14px rgba(0,0,0,0.4)); }
+  .video-stage .play-hint {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.92); font-size: 14px; cursor: pointer;
+    background: rgba(31,27,22,0.25); transition: all 0.2s;
+  }
+  .video-stage.playing .play-hint { opacity: 0; pointer-events: none; }
+  .video-stage .subtitle {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    background: rgba(31,27,22,0.72); color: #fff; padding: 6px 14px; border-radius: 99px; font-size: 13px; white-space: nowrap;
+  }
+  .timeline { display: flex; gap: 3px; margin-top: 10px; }
+  .timeline i { flex: 1; height: 4px; border-radius: 2px; background: var(--line); }
+  .timeline i.on { background: var(--tea); }
+
+  /* ===== 进度条（模拟生成） ===== */
+  .gen-progress { display: none; margin-top: 10px; }
+  .gen-progress.show { display: block; }
+  .bar { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #93b583, #5a7c4d); border-radius: 4px; transition: width 0.2s; }
+  .gen-progress p { font-size: 11.5px; color: var(--ink-3); margin-top: 6px; }
+
+  /* ===== 费用条 ===== */
+  .cost { display: flex; gap: 8px; flex-wrap: wrap; }
+  .cost .item { border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 8px 14px; text-align: center; flex: 1; min-width: 90px; }
+  .cost .item b { display: block; font-size: 16px; color: var(--tea); }
+  .cost .item span { font-size: 11px; color: var(--ink-3); }
+
+  .fade-in { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .empty { text-align: center; color: var(--ink-3); font-size: 12.5px; padding: 26px 0; }
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid var(--tea-bg); border-top-color: var(--tea);
+    border-radius: 50%; display: inline-block; animation: spin 0.7s linear infinite; vertical-align: -3px; margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none; }
+  .muted { color: var(--ink-3); font-size: 12px; }
+  footer { text-align: center; color: var(--ink-3); font-size: 11.5px; margin-top: 26px; line-height: 1.8; }
+  footer a { color: var(--tea); text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== 头部 ===== -->
+  <header>
+    <div class="logo">
+      <div class="logo-badge">🎬</div>
+      <div>
+        <h1>AI 漫剧工坊</h1>
+        <p>小说 → 剧本 → 资产 → 分镜 → 视频 · 全流程 AI 创作流水线</p>
+      </div>
+    </div>
+    <div class="head-actions">
+      <a class="btn" href="https://github.com/snow-sakura/comic-video" target="_blank" rel="noopener">⭐ GitHub 仓库</a>
+      <button class="btn" id="btnReset">↺ 重置演示</button>
+    </div>
+  </header>
+
+  <!-- ===== 提示条 ===== -->
+  <div class="notice">
+    <span>🌸</span>
+    <div>
+      <b>在线体验 Demo：</b>由 GitHub Pages 托管的纯前端交互演示 —— 无后端、无数据库、无第三方依赖，数据为内置样例，按钮可点击体验完整四步流水线。完整版请克隆仓库本地运行（需要 PostgreSQL + Redis + AI 密钥）。
+    </div>
+  </div>
+
+  <!-- ===== 步骤 TABS ===== -->
+  <nav class="steps" id="stepTabs"></nav>
+
+  <!-- ===== 步骤 1：剧本工坊 ===== -->
+  <section id="panel-script" class="fade-in">
+    <div class="card">
+      <div class="card-head">
+        <div><h3>① 导入小说</h3><p class="sub">已内置样例：《车祸后我成了平行世界的女装大佬》第 1 章</p></div>
+        <span class="tag tag-tea">✓ 已导入 · 1 章 · 1,428 字</span>
+      </div>
+      <div class="muted" style="line-height:1.9; max-height: 108px; overflow: hidden; font-size:12.5px;" id="novelPreview">
+        一辆失控的卡车呼啸而来，我脑子里最后一个念头是“卧槽今年的年终奖还没拿到”，整个人便腾空而起，在空中完成了一个标准的七百二十度转体，然后重重摔在地上。意识模糊间，我听见一个机械音在脑子里嗡嗡作响：“检测到宿主濒死状态，系统绑定中——绑定成功。宿主，你想活下去吗？”……我，林星晚，一个平平无奇的社畜，就这样被拉进了平行世界的生存游戏。
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div><h3>② 提炼角色</h3><p class="sub">LLM 从小说提炼角色卡（外貌 / 性格 / 配音建议），无密钥时自动启发式提取</p></div>
+        <button class="btn btn-sm" id="btnExtract">✨ 重新提炼</button>
+      </div>
+      <div class="gen-progress" id="extractProgress"><div class="bar"><i></i></div><p>Agent 1：编剧统筹正在阅读小说并提炼人设…</p></div>
+      <div class="grid grid-4" id="charGrid"><!-- JS 渲染角色卡 --></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div><h3>③ 分集大纲</h3><p class="sub">总编剧 Agent 生成核心梗概 + 分集大纲（每集带集尾钩子）</p></div>
+        <button class="btn btn-sm" id="btnOutline">✨ 生成大纲</button>
+      </div>
+      <div class="gen-progress" id="outlineProgress"><div class="bar"><i></i></div><p>Agent 2：总编剧规划剧情节奏与情绪曲线…</p></div>
+      <div class="card" style="box-shadow:none; background:#faf7f0;">
+        <div style="font-size:12px; color:var(--ink-3);">核心梗概</div>
+        <div style="font-size:13px; margin-top:4px;">社畜林星晚车祸后被「平行世界生存系统」绑定，被迫以女装大佬身份在平行世界职场求生，在系统任务与真实自我之间左右横跳。</div>
+      </div>
+      <div class="grid" id="outlineGrid" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-head">
+        <div><h3>④ 分集剧本</h3><p class="sub">逐集生成完整剧本（场景 / 动作 / 台词 / 情绪），供分镜车间使用</p></div>
+        <span class="tag tag-amber">1 / 1 集</span>
+      </div>
+      <div class="grid" id="scriptGrid"></div>
+    </div>
+  </section>
+
+  <!-- ===== 步骤 2：资产工厂 ===== -->
+  <section id="panel-asset" class="hidden">
+    <div class="card">
+      <div class="card-head">
+        <div><h3>① 角色定妆照</h3><p class="sub">每个角色 3 张定妆照（正面 / 侧面 / 全身），锁定后作为分镜参考图保证一致性</p></div>
+        <div><span class="tag tag-tea">4 / 4 已锁定</span></div>
+      </div>
+      <div class="grid grid-4" id="assetChars"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><h3>② 场景空镜</h3><p class="sub">从剧本自动提取场景，生成无人物环境图，锁定后作为分镜背景参考</p></div>
+        <span class="tag tag-tea">2 / 2 已锁定</span>
+      </div>
+      <div class="grid grid-2" id="assetScenes"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><h3>费用估算</h3><p class="sub">Mock 供应商全部记为 ¥0（真实调用按 token / 张 / 条计费）</p></div>
+      </div>
+      <div class="cost">
+        <div class="item"><b>4</b><span>定妆照 ×3</span></div>
+        <div class="item"><b>2</b><span>场景空镜</span></div>
+        <div class="item"><b>¥0.00</b><span>已消耗（估算）</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 步骤 3：分镜车间 ===== -->
+  <section id="panel-storyboard" class="hidden">
+    <div class="card">
+      <div class="card-head">
+        <div><h3>AI 分镜（场景 → 镜头）</h3><p class="sub">分镜 Agent 按剧情节奏切分镜头，7 维提示词自动引用锁定资产</p></div>
+        <span class="tag tag-sky">第 1 集 · 6 镜头</span>
+      </div>
+      <div class="grid" id="shotList"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><h3>7 维提示词示例</h3><p class="sub">主体 / 动作 / 环境 / 镜头 / 光线 / 画风 / 附加 —— 情绪色板自动注入</p></div>
+        <button class="btn btn-sm" id="btnPrompt">✨ 重新组装</button>
+      </div>
+      <div class="gen-progress" id="promptProgress"><div class="bar"><i></i></div><p>组装引用锁定资产的 7 维出图提示词…</p></div>
+      <pre id="promptBox" style="background:#faf7f0; border:1px solid var(--line); border-radius:10px; padding:12px; font-size:11.5px; line-height:1.8; white-space:pre-wrap; color:var(--ink-2);"></pre>
+    </div>
+  </section>
+
+  <!-- ===== 步骤 4：视频合成厂 ===== -->
+  <section id="panel-compose" class="hidden">
+    <div class="card">
+      <div class="card-head">
+        <div><h3>微动态片段（图生视频）</h3><p class="sub">5 秒片段 · 轻呼吸感微动态 · 逐镜合成</p></div>
+        <span class="tag tag-tea">6 / 6 已完成</span>
+      </div>
+      <div class="video-stage" id="videoStage">
+        <span class="scene-art">🏙️</span>
+        <div class="subtitle" id="subtitle">点击播放演示片段</div>
+        <div class="play-hint" id="playHint">▶ 播放第 1 镜</div>
+      </div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><h3>配音与混音</h3><p class="sub">TTS 配音（建议音色：清亮少女音 · 中速） + 音效 BGM 混音</p></div>
+        <span class="tag tag-line">Mock 配音</span>
+      </div>
+      <div class="grid grid-2" id="audioRows"></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <div><h3>导出</h3><p class="sub">ffmpeg 逐镜拼接 + 字幕烧录 → MP4（1080p）</p></div>
+        <button class="btn btn-primary" id="btnExport">📦 合成并导出 MP4（演示）</button>
+      </div>
+      <div class="gen-progress" id="exportProgress"><div class="bar"><i></i></div><p>ffmpeg 合成中：拼接 6 个镜头 + 混音 + 字幕…</p></div>
+      <div class="hidden" id="exportDone" style="margin-top:10px;">
+        <span class="tag tag-tea">✓ 导出完成：episode-1.mp4（48.2MB · 1080p · 00:34）</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="steps-foot">
+    <button class="btn" id="btnPrev">← 上一步</button>
+    <span class="pos" id="stepPos">1 / 4</span>
+    <button class="btn btn-primary" id="btnNext">下一步 →</button>
+  </div>
+
+  <footer>
+    AI 漫剧工坊 · 在线体验 Demo<br>
+    <a href="https://github.com/snow-sakura/comic-video" target="_blank" rel="noopener">GitHub 仓库</a> · 完整版需本地运行：Next.js + PostgreSQL + Redis + AI 供应商密钥（可 Mock 模式全流程演示）<br>
+    本项目为学习交流用途，样例数据为虚构内容
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // ========== 内置样例数据（内存模拟，无任何后端） ==========
+  var CHARACTERS = [
+    { name: "林星晚", role: "主角", emoji: "🧑‍💼", color: "g1",
+      appearance: "深棕色中长碎发，常穿米白衬衫+深灰西裤，戴黑框眼镜", trait: "表面社畜，内心倔强，语速快", voice: "清亮少女音 · 中速" },
+    { name: "系统", role: "功能性", emoji: "🤖", color: "g2",
+      appearance: "无实体，提示音为冷冽机械电子音", trait: "毒舌、任务驱动、规则至上", voice: "机械电子音 · 平稳" },
+    { name: "面试官", role: "配角", emoji: "👔", color: "g3",
+      appearance: "银灰短发，藏蓝西装，金丝眼镜", trait: "严肃挑剔、气场强", voice: "低沉男声 · 慢速" },
+    { name: "路人同事", role: "配角", emoji: "🧑‍🏫", color: "g4",
+      appearance: "棕色马尾，浅粉针织衫，圆脸", trait: "热情八卦、自来熟", voice: "活泼少女音 · 快速" },
+  ];
+  var OUTLINES = [
+    { num: "第1集", title: "车祸后我成了平行世界的女装大佬", hook: "「穿女装第一天，我在电梯口撞上了前任。」", tag: "开篇 · 建立冲突" },
+    { num: "第2集", title: "系统要我穿裙子上班", hook: "「工牌照片是女装，全公司都认识我了。」", tag: "情绪高点 · 社死" },
+    { num: "第3集", title: "女装大佬的职场大作战", hook: "「他盯着我的裙子看了三秒，笑了。」", tag: "转折 · 悬念" },
+  ];
+  var SCRIPTS = [
+    { scene: "主线场景 · 日", text: "“一辆失控的卡车呼啸而来…检测到宿主濒死状态，系统绑定中——绑定成功。宿主，你想活下去吗？”", emotion: "紧张", shot: 2 },
+    { scene: "系统空间 · 空", text: "“任务一：以女装身份入职星辰集团，期限三天。失败惩罚：格式化。”", emotion: "冷漠", shot: 2 },
+    { scene: "面试间 · 日", text: "“你好，我是林星晚。……嗯，特长？穿…穿搭。”", emotion: "尴尬", shot: 2 },
+  ];
+  var SHOTS = [
+    { n: 1, cam: "全景 · 固定 · 中景", act: "雨夜街口，卡车灯光逼近，主角回头愣住", dlg: "“卧槽！年终奖还没拿！”", emo: "紧张", dur: "4s", icon: "🚚", bg: "g3", tag: "brick" },
+    { n: 2, cam: "特写 · 推近", act: "主角摔地，意识模糊，蓝光粒子浮现", dlg: "“检测到宿主濒死状态…”", emo: "冷漠", dur: "5s", icon: "💠", bg: "g2", tag: "sky" },
+    { n: 3, cam: "近景 · 固定", act: "系统空间，机械面板环绕，主角惊坐起", dlg: "“任务一：女装入职星辰集团。”", emo: "震惊", dur: "6s", icon: "🤖", bg: "g1", tag: "amber" },
+    { n: 4, cam: "中景 · 横移", act: "公司大厅，众人侧目，主角攥紧裙角强装镇定", dlg: "“看什么看，没见过帅哥…穿裙子吗。”", emo: "尴尬", dur: "5s", icon: "🏢", bg: "g3", tag: "brick" },
+    { n: 5, cam: "特写 · 固定", act: "电梯门开，前任出现在门口，四目相对", dlg: "“……”", emo: "震惊", dur: "4s", icon: "🛗", bg: "g4", tag: "amber" },
+    { n: 6, cam: "全景 · 拉远", act: "夕阳下，主角走出大楼，回望公司招牌，握拳", dlg: "“行，游戏开始了。”", emo: "坚定", dur: "5s", icon: "🌇", bg: "g5", tag: "tea" },
+  ];
+  var PROMPT7 = "林星晚：身穿米白衬衫与深灰西裤，深棕色中长碎发，黑框眼镜，紧张表情\n画面动作：攥紧衣角，强装镇定\n场景：星辰集团前台大厅\n镜头：中景、横移\n光线氛围：室内自然窗光 + 环境补光\n画风：现代都市言情风，电影级光影，精致唯美，干净利落的构图，高细节，2.5D 动漫风格\n色彩基调：冷蓝色调，低饱和（紧张情绪色板）\n画面干净，无文字，无水印";
+  var AUDIO_ROWS = [
+    { label: "主角配音", detail: "清亮少女音 · 中速 · 情绪基准：外强中干", icon: "🎙️" },
+    { label: "系统音", detail: "机械电子音 · 平稳 · 低频混响", icon: "📟" },
+    { label: "BGM 背景音乐", detail: "轻快悬疑钢琴 + 鼓点，第 3 镜起渐强", icon: "🎹" },
+    { label: "音效", detail: "雨声 / 提示音 / 电梯叮声 / 快门声", icon: "🔊" },
+  ];
+
+  // ========== 步骤状态 ==========
+  var STEPS = [
+    { key: "script", name: "剧本工坊", desc: "导入小说 → 提炼人设 → 生成分集剧本" },
+    { key: "asset", name: "资产工厂", desc: "角色 / 场景设计稿 + 一致性锁定" },
+    { key: "storyboard", name: "分镜车间", desc: "AI 分镜 → 7 维提示词 → 批量出图" },
+    { key: "compose", name: "视频合成厂", desc: "微动态 / TTS 配音 / BGM / 合成导出" },
+  ];
+  var cur = 0;
+
+  // ========== 工具 ==========
+  function el(id) { return document.getElementById(id); }
+  function simulateProgress(boxId, barSelector, steps, cb) {
+    var box = el(boxId);
+    box.classList.add("show");
+    var i = box.querySelector(barSelector);
+    var p = box.querySelector("p");
+    var v = 0;
+    var timer = setInterval(function () {
+      v += 8 + Math.random() * 14;
+      if (v >= 100) { v = 100; clearInterval(timer); setTimeout(cb, 250); }
+      i.style.width = v + "%";
+      if (p) p.textContent = p.dataset.base + " " + Math.min(100, Math.round(v)) + "%";
+    }, 90);
+  }
+
+  // ========== 渲染：TABS ==========
+  function renderTabs() {
+    var nav = el("stepTabs");
+    nav.innerHTML = "";
+    STEPS.forEach(function (s, i) {
+      var b = document.createElement("button");
+      b.className = i === cur ? "active" : "";
+      b.innerHTML = "0" + (i + 1) + " " + s.name + "<small>" + s.desc + "</small>";
+      b.onclick = function () { goto(i); };
+      nav.appendChild(b);
+    });
+    el("stepPos").textContent = (cur + 1) + " / 4";
+    el("btnPrev").disabled = cur === 0;
+    el("btnNext").disabled = cur === 3;
+  }
+
+  function goto(i) {
+    cur = Math.max(0, Math.min(3, i));
+    ["script", "asset", "storyboard", "compose"].forEach(function (k, idx) {
+      el("panel-" + k).classList.toggle("hidden", idx !== cur);
+      el("panel-" + k).classList.add("fade-in");
+    });
+    renderTabs();
+  }
+
+  // ========== 渲染：剧本工坊 ==========
+  function renderChars() {
+    var g = el("charGrid");
+    g.innerHTML = "";
+    CHARACTERS.forEach(function (c) {
+      var card = document.createElement("div");
+      card.className = "char-card fade-in";
+      card.innerHTML =
+        '<div class="char-top"><div class="avatar ' + c.color + '">' + c.emoji + '</div>' +
+        '<div><b>' + c.name + '</b><div class="role">' + c.role + ' · 已锁定</div></div></div>' +
+        '<ul class="char-desc">' +
+        '<li>外貌：' + c.appearance + '</li>' +
+        '<li>性格：' + c.trait + '</li>' +
+        '<li>配音：' + c.voice + '</li></ul>';
+      g.appendChild(card);
+    });
+  }
+  function renderOutlines() {
+    var g = el("outlineGrid");
+    g.innerHTML = "";
+    OUTLINES.forEach(function (o) {
+      var d = document.createElement("div");
+      d.className = "card fade-in";
+      d.style.boxShadow = "none";
+      d.style.marginBottom = "0";
+      d.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+        '<b style="font-size:13px;">' + o.num + ' · ' + o.title + '</b>' +
+        '<span class="tag tag-amber">' + o.tag + '</span></div>' +
+        '<div style="font-size:12px;color:var(--ink-3);">集尾钩子：' + o.hook + '</div>';
+      g.appendChild(d);
+    });
+  }
+  function renderScripts() {
+    var g = el("scriptGrid");
+    g.innerHTML = "";
+    SCRIPTS.forEach(function (s) {
+      var d = document.createElement("div");
+      d.className = "card fade-in";
+      d.style.boxShadow = "none";
+      d.style.marginBottom = "0";
+      d.innerHTML =
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">' +
+        '<span class="tag tag-line">' + s.scene + '</span>' +
+        '<span class="tag tag-sky">' + s.shot + ' 镜</span></div>' +
+        '<div style="font-size:12.5px;line-height:1.7;color:var(--ink-2);">' + s.text + '</div>';
+      g.appendChild(d);
+    });
+  }
+
+  // ========== 渲染：资产工厂 ==========
+  function renderAssets() {
+    var g = el("assetChars");
+    g.innerHTML = "";
+    CHARACTERS.forEach(function (c) {
+      var d = document.createElement("div");
+      d.className = "asset-card fade-in";
+      d.innerHTML =
+        '<div class="asset-visual ' + c.color + '">' + c.emoji + '</div>' +
+        '<div class="asset-name"><span>' + c.name + '</span><span>✓ 锁定</span></div>';
+      g.appendChild(d);
+    });
+    var s = el("assetScenes");
+    s.innerHTML =
+      '<div class="asset-card fade-in"><div class="asset-visual g3">🏢</div><div class="asset-name"><span>星辰集团大厅</span><span>现代 · 冷调</span></div></div>' +
+      '<div class="asset-card fade-in"><div class="asset-visual g5">🌇</div><div class="asset-name"><span>公司门口·黄昏</span><span>暖金逆光</span></div></div>';
+  }
+
+  // ========== 渲染：分镜车间 ==========
+  function renderShots() {
+    var g = el("shotList");
+    g.innerHTML = "";
+    SHOTS.forEach(function (s) {
+      var d = document.createElement("div");
+      d.className = "shot fade-in";
+      d.innerHTML =
+        '<div class="shot-img ' + s.bg + '">' + s.icon + '</div>' +
+        '<div class="shot-body">' +
+        '<div class="cam">镜头 ' + s.n + ' · ' + s.cam + ' · ' + s.dur + '</div>' +
+        '<div class="act">' + s.act + '</div>' +
+        (s.dlg ? '<div class="dlg">「' + s.dlg + '」</div>' : '') +
+        '<div style="margin-top:5px;"><span class="tag tag-' + s.tag + '">' + s.emo + '</span><span class="tag tag-line" style="margin-left:2px;">✓ 已出图</span></div>' +
+        '</div>';
+      g.appendChild(d);
+    });
+    renderTimeline();
+  }
+  function renderTimeline() {
+    var tl = el("timeline");
+    tl.innerHTML = "";
+    SHOTS.forEach(function (s, i) {
+      var seg = document.createElement("i");
+      seg.className = i === 0 ? "on" : "";
+      seg.dataset.idx = i;
+      seg.title = "镜头 " + s.n;
+      seg.style.cursor = "pointer";
+      seg.onclick = function () {
+        var v = el("videoStage");
+        v.querySelector(".scene-art").textContent = s.icon;
+        v.querySelector(".scene-art").style.transform = "scale(1)";
+        el("subtitle").textContent = s.dlg || ("镜头 " + s.n + "：" + s.act.slice(0, 12) + "…");
+        tl.querySelectorAll("i").forEach(function (x, j) { x.className = j <= i ? "on" : ""; });
+      };
+      tl.appendChild(seg);
+    });
+  }
+
+  // ========== 视频播放模拟 ==========
+  var playTimer = null;
+  function togglePlay() {
+    var stage = el("videoStage");
+    var hint = el("playHint");
+    if (stage.classList.contains("playing")) {
+      stage.classList.remove("playing");
+      hint.innerHTML = "▶ 继续播放";
+      clearInterval(playTimer);
+      return;
+    }
+    stage.classList.add("playing");
+    hint.textContent = "";
+    var subs = ["“卧槽！年终奖还没拿！”", "“检测到宿主濒死状态…”", "“任务一：女装入职星辰集团。”", "“看什么看，没见过帅哥…穿裙子吗。”", "“……是我前女友。”", "“行，游戏开始了。”"];
+    var idx = 0;
+    playTimer = setInterval(function () {
+      el("subtitle").textContent = subs[idx % subs.length];
+      idx++;
+      if (idx >= subs.length) { clearInterval(playTimer); stage.classList.remove("playing"); hint.innerHTML = "↺ 重播片段"; }
+    }, 1600);
+  }
+
+  // ========== 事件绑定 ==========
+  el("btnNext").onclick = function () { goto(cur + 1); };
+  el("btnPrev").onclick = function () { goto(cur - 1); };
+  el("btnReset").onclick = function () {
+    goto(0);
+    renderChars(); renderOutlines(); renderScripts(); renderAssets(); renderShots();
+    el("extractProgress").classList.remove("show");
+    el("outlineProgress").classList.remove("show");
+    el("promptProgress").classList.remove("show");
+    el("exportProgress").classList.remove("show");
+    el("exportDone").classList.add("hidden");
+  };
+  el("btnExtract").onclick = function () {
+    var box = el("extractProgress");
+    box.querySelector("p").dataset.base = "Agent 1：编剧统筹正在阅读小说并提炼人设…";
+    simulateProgress("extractProgress", "i", 6, renderChars);
+  };
+  el("btnOutline").onclick = function () {
+    var box = el("outlineProgress");
+    box.querySelector("p").dataset.base = "Agent 2：总编剧规划剧情节奏与情绪曲线…";
+    simulateProgress("outlineProgress", "i", 6, renderOutlines);
+  };
+  el("btnPrompt").onclick = function () {
+    var box = el("promptProgress");
+    box.querySelector("p").dataset.base = "组装引用锁定资产的 7 维出图提示词…";
+    simulateProgress("promptProgress", "i", 5, function () {
+      el("promptBox").textContent = PROMPT7;
+    });
+  };
+  el("btnExport").onclick = function () {
+    var box = el("exportProgress");
+    box.querySelector("p").dataset.base = "ffmpeg 合成中：拼接 6 个镜头 + 混音 + 字幕…";
+    simulateProgress("exportProgress", "i", 8, function () {
+      el("exportDone").classList.remove("hidden");
+    });
+  };
+  el("playHint").onclick = togglePlay;
+  el("videoStage").onclick = togglePlay;
+
+  // ========== 初始化 ==========
+  renderTabs();
+  renderChars();
+  renderOutlines();
+  renderScripts();
+  renderAssets();
+  renderShots();
+  el("promptBox").textContent = PROMPT7;
+  el("subtitle").textContent = "点击播放演示片段";
+})();
+</script>
+</body>
+</html>

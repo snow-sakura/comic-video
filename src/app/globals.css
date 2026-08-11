@@ -1,19 +1,109 @@
 @import "tailwindcss";
 
+/* ============================================================
+ * 浅色调 · 日式治愈系主题（iyashikei）
+ * 米白纸感底 + 暖沙灰阶 + 抹茶绿主色 + 砖红/苔绿/暖杏语义色。
+ * 通过 @theme 覆盖默认色板，明暗反向映射，现有 zinc/violet/red
+ * 等硬编码类无需改动即可整体变浅。
+ * ============================================================ */
+
 :root {
-  --background: #09090b;
-  --foreground: #ededed;
+  --background: #f6f2ea; /* 米白纸感 */
+  --foreground: #3e372e; /* 深棕墨色 */
 }
 
+/* zinc：暖沙灰阶（反向明暗：950 最浅 = 底色，100 最深 = 墨色文字） */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* 结构色：背景 / 卡片 / 边框 */
+  --color-zinc-950: #f6f2ea; /* 页面底色（原最深 → 最浅） */
+  --color-zinc-900: #fdfbf7; /* 卡片暖白 */
+  --color-zinc-800: #eae3d6; /* 常规边框 浅沙 */
+  --color-zinc-700: #d8cfbf; /* 分割线 / 次级边框 */
+  --color-zinc-600: #b3a896; /* 弱占位 / 禁用 */
+  --color-zinc-500: #938878; /* 弱文字 暖灰 */
+  --color-zinc-400: #756b5d; /* 次要文字 */
+  --color-zinc-300: #5c5347; /* 正文 */
+  --color-zinc-200: #4a4238; /* 强调文字 */
+  --color-zinc-100: #3e372e; /* 主文字 深棕墨 */
+  --color-zinc-50: #2f2a23; /* 最深强调 */
+
+  /* violet → 抹茶绿（主品牌色） */
+  --color-violet-950: #eaf0e1; /* 淡抹茶底 */
+  --color-violet-800: #d9e4c9; /* 抹茶浅边框 */
+  --color-violet-700: #b9cca4;
+  --color-violet-600: #5a7c4d; /* 主按钮 深抹茶（白字可读） */
+  --color-violet-500: #6b8f5b; /* hover 亮抹茶 */
+  --color-violet-400: #7fa36f; /* 链接 / 强调 */
+  --color-violet-300: #93b583; /* 激活文字 */
+  --color-violet-200: #b9cfa9; /* 弱强调 */
+
+  /* red → 砖红（错误） */
+  --color-red-950: #f6e4de; /* 淡砖红底 */
+  --color-red-800: #d9a08e; /* 错误边框 */
+  --color-red-500: #c2634f;
+  --color-red-400: #a9503e; /* 错误文字 */
+  --color-red-300: #8f4334; /* 错误文字（深） */
+
+  /* emerald → 苔绿（成功 / 费用） */
+  --color-emerald-950: #e4efda;
+  --color-emerald-800: #b9cfa2;
+  --color-emerald-700: #8fae7b;
+  --color-emerald-500: #6e9358;
+  --color-emerald-300: #527b44;
+
+  /* amber → 暖杏（警告 / 排队） */
+  --color-amber-950: #f7ebd2;
+  --color-amber-800: #e3c98f;
+  --color-amber-700: #c9a25e;
+  --color-amber-500: #b0853a;
+  --color-amber-300: #8f6a2a;
+
+  /* sky → 天青（处理中） */
+  --color-sky-950: #e3edf4;
+  --color-sky-800: #bcd2e0;
+  --color-sky-300: #4e7e9e;
+
+  /* teal / fuchsia（少量点缀） */
+  --color-teal-400: #35786c;
+  --color-teal-300: #3e8a7c;
+  --color-fuchsia-300: #b04e8a;
 }
 
 body {
-  background: var(--background);
+  /* 米白纸感底 + 极淡暖调渐变 + 点状纸纹 */
+  background:
+    radial-gradient(rgba(110, 143, 94, 0.05) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(180deg, #faf7f0 0%, #f4efe4 100%);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+/* 滚动条柔和化 */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #d8cfbf;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #c4b8a4;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* 选区用抹茶色 */
+::selection {
+  background: rgba(147, 181, 131, 0.35);
 }

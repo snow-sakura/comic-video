@@ -24,9 +24,10 @@ export function estimateTokens(text: string): number {
   return Math.ceil(cjk + other / 4);
 }
 
-// ========== 单价表（元 / 千 token，2025 参考价，仅估算） ==========
+// ========== 单价表（元 / 千 token，参考价，仅估算） ==========
 
 const LLM_PRICES: Record<string, { input: number; output: number }> = {
+  glm: { input: 0.0, output: 0.0 }, // glm-4.7-flash 免费档（如收费请按实际调整）
   deepseek: { input: 0.002, output: 0.008 }, // deepseek-chat
   doubao: { input: 0.002, output: 0.008 }, // doubao-seed
 };
@@ -55,14 +56,14 @@ export interface CostUnits {
 async function isMock(kind: CostUnits["kind"]): Promise<boolean> {
   const key =
     kind === "llm"
-      ? "llm.scriptProvider"
+      ? "text.provider"
       : kind === "image"
         ? "image.provider"
         : kind === "video"
           ? "video.provider"
-          : "tts.provider";
+          : "tts.engine";
   const id = ((await getSetting<string>(key)) ?? "").toLowerCase();
-  return id.includes("mock");
+  return id === "" || id.includes("mock");
 }
 
 /** 按任务类型估算费用（元）；provider 为 mock 时返回 0 */
@@ -70,8 +71,8 @@ export async function estimateCost(units: CostUnits): Promise<number> {
   if (await isMock(units.kind)) return 0;
   switch (units.kind) {
     case "llm": {
-      const provider = ((await getSetting<string>("llm.scriptProvider")) ?? "").toLowerCase();
-      const p = LLM_PRICES[provider] ?? LLM_PRICES["deepseek"]!;
+      const provider = ((await getSetting<string>("text.provider")) ?? "").toLowerCase();
+      const p = LLM_PRICES[provider] ?? LLM_PRICES["glm"]!;
       const inputTokens = estimateTokens(units.inputChars ? String(units.inputChars) : "");
       // outputChars 传的是字符数，直接估算
       const outputTokens = units.outputChars ? Math.ceil(units.outputChars / 1.5) : 0;

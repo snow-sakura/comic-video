@@ -111,7 +111,8 @@ export default function ScriptWorkbench({
   }, [projectId]);
 
   useEffect(() => {
-    void load();
+    const t = setTimeout(() => void load(), 0);
+    return () => clearTimeout(t);
   }, [load]);
 
   // 有运行任务时轮询
@@ -133,7 +134,7 @@ export default function ScriptWorkbench({
         pollRef.current = null;
       }
     };
-  }, [data?.runningTask?.id, load]);
+  }, [data?.runningTask, load]);
 
   const trigger = useCallback(
     async (stage: string, episodeNumber?: number) => {

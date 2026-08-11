@@ -27,7 +27,6 @@ export default function HomePage() {
   const [error, setError] = useState("");
 
   async function loadProjects() {
-    setLoading(true);
     try {
       const res = await fetch("/api/projects");
       if (res.ok) setProjects(await res.json());

@@ -106,7 +106,8 @@ export default function ComposeWorkbench({
   }, [projectId]);
 
   useEffect(() => {
-    void load();
+    const t = setTimeout(() => void load(), 0);
+    return () => clearTimeout(t);
   }, [load]);
 
   // 运行中任务轮询
@@ -128,7 +129,7 @@ export default function ComposeWorkbench({
         pollRef.current = null;
       }
     };
-  }, [data?.runningTask?.id, load]);
+  }, [data?.runningTask, load]);
 
   const post = useCallback(
     async (stage: string, episodeNumber: number, shotId?: string) => {

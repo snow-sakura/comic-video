@@ -10,62 +10,67 @@ import { enqueueGenTask } from "@/lib/queue/queues";
 import { getScriptStage } from "@/lib/agents";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const project = await prisma.project.findUnique({ where: { id } });
-  if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
-  if (!project.novelText) return NextResponse.json({ error: "尚未上传小说" }, { status: 400 });
+  try {
+    const { id } = await params;
+    const project = await prisma.project.findUnique({ where: { id } });
+    if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+    if (!project.novelText) return NextResponse.json({ error: "尚未上传小说" }, { status: 400 });
 
-  const body = await req.json().catch(() => ({}));
-  const stage = body?.stage as string | undefined;
-  const episodeNumber = body?.episodeNumber ? Number(body.episodeNumber) : undefined;
-  if (!["characters", "outline", "script"].includes(stage ?? "")) {
-    return NextResponse.json({ error: "stage 必须是 characters | outline | script" }, { status: 400 });
+    const body = await req.json().catch(() => ({}));
+    const stage = body?.stage as string | undefined;
+    const episodeNumber = body?.episodeNumber ? Number(body.episodeNumber) : undefined;
+    if (!["characters", "outline", "script"].includes(stage ?? "")) {
+      return NextResponse.json({ error: "stage 必须是 characters | outline | script" }, { status: 400 });
+    }
+    if (stage === "script" && !episodeNumber) {
+      return NextResponse.json({ error: "script 阶段需要 episodeNumber" }, { status: 400 });
+    }
+
+    // 前置依赖校验
+    if (stage === "outline") {
+      const count = await prisma.character.count({ where: { projectId: id } });
+      if (count === 0) return NextResponse.json({ error: "请先运行「提炼角色」" }, { status: 400 });
+    }
+    if (stage === "script") {
+      const script = await prisma.script.findFirst({ where: { projectId: id } });
+      const content = (script?.content ?? {}) as { episodeOutlines?: unknown };
+      if (!content.episodeOutlines) return NextResponse.json({ error: "请先运行「生成大纲」" }, { status: 400 });
+    }
+
+    // 幂等保护：同一 stage 进行中任务不可重复触发
+    const existing = await prisma.genTask.findFirst({
+      where: { projectId: id, type: "LLM", status: { in: ["QUEUED", "PROCESSING"] } },
+    });
+    if (existing) {
+      return NextResponse.json({ error: "已有剧本任务进行中，请等待完成", runningTaskId: existing.id }, { status: 409 });
+    }
+
+    const task = await prisma.genTask.create({
+      data: {
+        projectId: id,
+        label: `剧本工坊·${stage === "characters" ? "角色提炼" : stage === "outline" ? "分集大纲" : `第${episodeNumber}集剧本`}`,
+        type: "LLM",
+        provider: "script-agent",
+        model: stage!,
+        status: "QUEUED",
+        input: { stage, episodeNumber } as never,
+      },
+    });
+
+    await enqueueGenTask("script", {
+      taskId: task.id,
+      payload: {
+        agent: stage,
+        projectId: id,
+        ...(episodeNumber ? { episodeNumber } : {}),
+      },
+    });
+
+    return NextResponse.json({ ok: true, taskId: task.id });
+  } catch (e) {
+    console.error(`[script-agent] 操作失败: ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "操作失败" }, { status: 500 });
   }
-  if (stage === "script" && !episodeNumber) {
-    return NextResponse.json({ error: "script 阶段需要 episodeNumber" }, { status: 400 });
-  }
-
-  // 前置依赖校验
-  if (stage === "outline") {
-    const count = await prisma.character.count({ where: { projectId: id } });
-    if (count === 0) return NextResponse.json({ error: "请先运行「提炼角色」" }, { status: 400 });
-  }
-  if (stage === "script") {
-    const script = await prisma.script.findFirst({ where: { projectId: id } });
-    const content = (script?.content ?? {}) as { episodeOutlines?: unknown };
-    if (!content.episodeOutlines) return NextResponse.json({ error: "请先运行「生成大纲」" }, { status: 400 });
-  }
-
-  // 幂等保护：同一 stage 进行中任务不可重复触发
-  const existing = await prisma.genTask.findFirst({
-    where: { projectId: id, type: "LLM", status: { in: ["QUEUED", "PROCESSING"] } },
-  });
-  if (existing) {
-    return NextResponse.json({ error: "已有剧本任务进行中，请等待完成", runningTaskId: existing.id }, { status: 409 });
-  }
-
-  const task = await prisma.genTask.create({
-    data: {
-      projectId: id,
-      label: `剧本工坊·${stage === "characters" ? "角色提炼" : stage === "outline" ? "分集大纲" : `第${episodeNumber}集剧本`}`,
-      type: "LLM",
-      provider: "script-agent",
-      model: stage!,
-      status: "QUEUED",
-      input: { stage, episodeNumber } as never,
-    },
-  });
-
-  await enqueueGenTask("script", {
-    taskId: task.id,
-    payload: {
-      agent: stage,
-      projectId: id,
-      ...(episodeNumber ? { episodeNumber } : {}),
-    },
-  });
-
-  return NextResponse.json({ ok: true, taskId: task.id });
 }
 
 /** GET — 剧本工坊状态聚合 */

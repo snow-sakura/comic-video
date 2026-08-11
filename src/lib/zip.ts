@@ -10,9 +10,6 @@ export interface ZipEntry {
   data: Buffer;
 }
 
-const U16 = (v: number) => Buffer.from([v & 0xff, (v >> 8) & 0xff]);
-const U32 = (v: number) => Buffer.from([v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >>> 24) & 0xff]);
-
 function localHeader(nameBuf: Buffer, crc: number, size: number): Buffer {
   const buf = Buffer.alloc(30);
   buf.writeUInt32LE(0x04034b50, 0); // signature

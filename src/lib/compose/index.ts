@@ -32,8 +32,6 @@ async function hasSubtitlesFilter(): Promise<boolean> {
   return hasSubtitlesFilterCache;
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 /** 按相对路径读取媒体文件时长（ffprobe，秒） */
 async function probeDuration(relPath: string): Promise<number> {
   const { stdout } = await execFileAsync("ffprobe", [
@@ -246,7 +244,7 @@ export async function composeEpisode(
       }
     }
 
-    let duration = await probeDuration(finalRel);
+    const duration = await probeDuration(finalRel);
 
     // 3. 可选 BGM 混音（素材缺失时静默跳过）：输出到临时文件后原子替换成片
     if (bgmMood) {

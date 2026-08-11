@@ -1,0 +1,42 @@
+# Prometheus 配置示例
+# 用法: prometheus --config.file=prometheus.yml
+
+global:
+  scrape_interval: 15s      # 默认采集间隔
+  evaluation_interval: 15s  # 规则评估间隔
+
+# 告警规则文件
+rule_files:
+  - "alerts.yml"
+
+# 采集目标
+scrape_configs:
+  # 漫剧视频生成器 - 应用指标
+  - job_name: 'comic-video'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['localhost:9100']
+        labels:
+          service: 'comic-video'
+          env: 'production'
+
+  # Node Exporter - 系统指标（可选）
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9101']
+        labels:
+          service: 'node'
+
+  # Redis Exporter - Redis 指标（可选）
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['localhost:9121']
+        labels:
+          service: 'redis'
+
+  # PostgreSQL Exporter - 数据库指标（可选）
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['localhost:9187']
+        labels:
+          service: 'postgresql'

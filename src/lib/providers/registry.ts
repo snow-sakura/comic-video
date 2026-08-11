@@ -1,11 +1,13 @@
 /**
  * 供应商注册表 — 按配置路由到真实/Mock 实现，实例缓存
- * 使用方式：
- *   const llm = await getScriptLLM();   // 剧本创作（DeepSeek）
- *   const struct = await getStructLLM(); // 结构化任务（豆包）
- *   const image = await getImage();
- *   const video = await getVideo();
- *   const tts = await getTTS();
+ *
+ * 配置按能力类别分组，各类只读自己的 <类别>.* 配置，互不混读：
+ *   const llm   = await getTextLLM();    // 文本模型（智谱 GLM 等）
+ *   const image = await getImage();      // 图像模型（智谱 CogView 等）
+ *   const video = await getVideo();      // 视频模型（智谱 CogVideoX 等）
+ *   const tts   = await getTTS();        // 声音模型（edge-tts / cosyvoice，未配置走 Mock）
+ *
+ * 向后兼容：getScriptLLM / getStructLLM 均委托给 getTextLLM（统一使用文本模型）。
  */
 import type {
   ImageProvider,
@@ -15,11 +17,11 @@ import type {
   TTSProvider,
   VideoProvider,
 } from "@/lib/providers/types";
-import { getApiKey, getSetting, shouldUseMock } from "@/lib/providers/settings";
-import { createDeepSeekProvider, createDoubaoProvider, createMockLLMProvider } from "@/lib/providers/llm";
-import { createImageProvider } from "@/lib/providers/image";
-import { createVideoProvider } from "@/lib/providers/video";
-import { createTTSProvider } from "@/lib/providers/tts";
+import { getTextConfig, getImageConfig, getVideoConfig, getTTSConfig, shouldUseMock } from "@/lib/providers/settings";
+import { createDeepSeekProvider, createDoubaoProvider, createGlmProvider, createMockLLMProvider } from "@/lib/providers/llm";
+import { createCogViewProvider, createMockImageProvider, createSeedreamProvider } from "@/lib/providers/image";
+import { createCogVideoXProvider, createKlingProvider, createMockVideoProvider } from "@/lib/providers/video";
+import { createEdgeTTSProvider, createCosyVoiceProvider, createMockTTSProvider } from "@/lib/providers/tts";
 import { createMusicProvider } from "@/lib/providers/music";
 import { createSfxProvider } from "@/lib/providers/sfx";
 
@@ -38,47 +40,45 @@ export function resetProviderCache(): void {
   cache.clear();
 }
 
-// ========== LLM（双路由） ==========
+// ========== 文本（LLM） ==========
 
-/** 剧本创作 LLM（默认 DeepSeek） */
-export async function getScriptLLM(): Promise<LLMProvider> {
-  return cached("llm:script", async () => {
-    const providerId = (await getSetting("llm.scriptProvider")) ?? "deepseek";
-    if (providerId === "deepseek") {
-      const mock = await shouldUseMock("deepseek");
-      return mock ? createMockLLMProvider() : createDeepSeekProvider();
+/** 文本模型（默认智谱 GLM；按 text.provider 选择后端） */
+export async function getTextLLM(): Promise<LLMProvider> {
+  return cached("llm:text", async () => {
+    const cfg = await getTextConfig();
+    if (cfg.provider === "mock") return createMockLLMProvider();
+    if (await shouldUseMock("text")) return createMockLLMProvider();
+    switch (cfg.provider) {
+      case "glm": return createGlmProvider();
+      case "deepseek": return createDeepSeekProvider();
+      case "doubao": return createDoubaoProvider();
+      default: return createMockLLMProvider();
     }
-    if (providerId === "doubao") {
-      const mock = await shouldUseMock("doubao");
-      return mock ? createMockLLMProvider() : createDoubaoProvider();
-    }
-    return createMockLLMProvider();
   });
 }
 
-/** 结构化任务 LLM（默认豆包） */
-export async function getStructLLM(): Promise<LLMProvider> {
-  return cached("llm:struct", async () => {
-    const providerId = (await getSetting("llm.structProvider")) ?? "doubao";
-    if (providerId === "doubao") {
-      const mock = await shouldUseMock("doubao");
-      return mock ? createMockLLMProvider() : createDoubaoProvider();
-    }
-    if (providerId === "deepseek") {
-      const mock = await shouldUseMock("deepseek");
-      return mock ? createMockLLMProvider() : createDeepSeekProvider();
-    }
-    return createMockLLMProvider();
-  });
+/** 剧本创作 LLM（向后兼容：委托给文本模型） */
+export function getScriptLLM(): Promise<LLMProvider> {
+  return getTextLLM();
+}
+
+/** 结构化任务 LLM（向后兼容：委托给文本模型） */
+export function getStructLLM(): Promise<LLMProvider> {
+  return getTextLLM();
 }
 
 // ========== 图像 ==========
 
 export async function getImage(): Promise<ImageProvider> {
   return cached("image", async () => {
-    const providerId = (await getSetting("image.provider")) ?? "seedream";
-    const mock = providerId === "seedream" ? await shouldUseMock("ark") : false;
-    return createImageProvider(mock ? "mock" : providerId);
+    const cfg = await getImageConfig();
+    if (cfg.provider === "mock") return createMockImageProvider();
+    if (await shouldUseMock("image")) return createMockImageProvider();
+    switch (cfg.provider) {
+      case "cogview": return createCogViewProvider();
+      case "seedream": return createSeedreamProvider();
+      default: return createMockImageProvider();
+    }
   });
 }
 
@@ -86,31 +86,29 @@ export async function getImage(): Promise<ImageProvider> {
 
 export async function getVideo(): Promise<VideoProvider> {
   return cached("video", async () => {
-    const providerId = (await getSetting("video.provider")) ?? "kling";
-    if (providerId === "kling") {
-      // 可灵需要 AK + SK 双凭证
-      const mode = (await getSetting("mock.mode")) ?? "auto";
-      const key = await getApiKey("kling");
-      const secret = await getSetting("kling.secret");
-      if (mode === "auto" && (!key || !secret)) {
-        return createVideoProvider("mock");
-      }
-      if (mode === "true") return createVideoProvider("mock");
+    const cfg = await getVideoConfig();
+    if (cfg.provider === "mock") return createMockVideoProvider();
+    if (await shouldUseMock("video")) return createMockVideoProvider();
+    switch (cfg.provider) {
+      case "cogvideox": return createCogVideoXProvider();
+      case "kling": return createKlingProvider();
+      default: return createMockVideoProvider();
     }
-    return createVideoProvider(providerId);
   });
 }
 
-// ========== TTS ==========
+// ========== TTS（声音模型；未配置 engine 时走 Mock） ==========
 
 export async function getTTS(): Promise<TTSProvider> {
   return cached("tts", async () => {
-    const providerId = (await getSetting("tts.provider")) ?? "cosyvoice";
-    if (providerId === "cosyvoice") {
-      const mock = await shouldUseMock("dashscope");
-      return mock ? createTTSProvider("mock") : createTTSProvider("cosyvoice");
+    const cfg = await getTTSConfig();
+    if (!cfg.engine) return createMockTTSProvider();
+    if (await shouldUseMock("tts")) return createMockTTSProvider();
+    switch (cfg.engine) {
+      case "edge-tts": return createEdgeTTSProvider();
+      case "cosyvoice": return createCosyVoiceProvider();
+      default: return createMockTTSProvider();
     }
-    return createTTSProvider(providerId);
   });
 }
 

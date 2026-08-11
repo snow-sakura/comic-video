@@ -43,30 +43,6 @@ const STEPS = [
 
 type StepKey = (typeof STEPS)[number]["key"];
 
-// ========== 设置表单 schema ==========
-
-interface SettingField {
-  key: string;
-  label: string;
-  type: "text" | "password" | "select";
-  options?: string[];
-  hint?: string;
-}
-
-const SETTING_FIELDS: SettingField[] = [
-  { key: "mock.mode", label: "Mock 模式", type: "select", options: ["auto", "true", "false"], hint: "auto=有 Key 用真、无 Key 自动演示" },
-  { key: "llm.scriptProvider", label: "剧本创作 LLM", type: "select", options: ["deepseek", "doubao"] },
-  { key: "llm.structProvider", label: "结构化任务 LLM", type: "select", options: ["doubao", "deepseek"] },
-  { key: "deepseek.apiKey", label: "DeepSeek API Key", type: "password", hint: "platform.deepseek.com" },
-  { key: "doubao.apiKey", label: "火山方舟 API Key", type: "password", hint: "ark.cn-beijing.volces.com（豆包/Seedream 共用）" },
-  { key: "image.provider", label: "图像引擎", type: "select", options: ["seedream"] },
-  { key: "video.provider", label: "视频引擎", type: "select", options: ["kling"] },
-  { key: "kling.apiKey", label: "可灵 AccessKey", type: "password", hint: "api.klingai.com" },
-  { key: "kling.secret", label: "可灵 SecretKey", type: "password" },
-  { key: "tts.provider", label: "TTS 引擎", type: "select", options: ["cosyvoice"] },
-  { key: "dashscope.apiKey", label: "阿里百炼 API Key", type: "password", hint: "dashscope.aliyuncs.com（CosyVoice）" },
-];
-
 // ========== 组件 ==========
 
 export default function WorkbenchPage() {
@@ -77,9 +53,9 @@ export default function WorkbenchPage() {
   const [loading, setLoading] = useState(true);
   const [step, setStep] = useState<StepKey>("script");
   const [showSettings, setShowSettings] = useState(false);
+  const [showTasks, setShowTasks] = useState(false);
 
   const loadProject = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await fetch(`/api/projects/${projectId}`);
       if (res.ok) setProject(await res.json());
@@ -89,7 +65,8 @@ export default function WorkbenchPage() {
   }, [projectId]);
 
   useEffect(() => {
-    void loadProject();
+    const t = setTimeout(() => void loadProject(), 0);
+    return () => clearTimeout(t);
   }, [loadProject]);
 
   if (loading) {
@@ -134,32 +111,82 @@ export default function WorkbenchPage() {
         <SettingsPanel onSaved={() => void loadProject()} />
       ) : (
         <>
-          {/* 任务与费用面板（P1-2） */}
-          <TaskCostPanel tasks={project.tasks} />
+          {/* 任务与费用面板（可折叠，避免与步骤内容堆叠） */}
+          <div className="mb-5">
+            <button
+              onClick={() => setShowTasks((v) => !v)}
+              className="flex w-full items-center justify-between rounded-2xl border border-zinc-800 bg-zinc-900/40 px-5 py-3 text-left transition hover:border-zinc-600"
+            >
+              <span className="text-sm font-semibold text-zinc-200">任务与费用</span>
+              <span className="text-xs text-zinc-500">{showTasks ? "收起 ▲" : "展开 ▼"}</span>
+            </button>
+            {showTasks && <div className="mt-2"><TaskCostPanel tasks={project.tasks} /></div>}
+          </div>
 
-          {/* 步骤导航 */}
-          <nav className="mb-6 grid grid-cols-2 gap-2 md:grid-cols-4">
-            {STEPS.map((s) => (
-              <button
-                key={s.key}
-                onClick={() => setStep(s.key)}
-                className={`rounded-xl border p-4 text-left transition ${
-                  step === s.key
-                    ? "border-violet-500 bg-violet-500/10"
-                    : "border-zinc-800 bg-zinc-900/50 hover:border-zinc-600"
-                }`}
-              >
-                <div className={`text-xs font-mono ${step === s.key ? "text-violet-300" : "text-zinc-600"}`}>
-                  {s.num}
-                </div>
-                <div className="mt-1 font-semibold">{s.name}</div>
-                <div className="mt-0.5 text-xs text-zinc-500">{s.desc}</div>
-              </button>
-            ))}
+          {/* 步骤 TAB 条（横向，01→04 前后流程） */}
+          <nav className="mb-6 flex flex-wrap items-stretch gap-1 rounded-xl border border-zinc-800 bg-zinc-900/40 p-1.5">
+            {STEPS.map((s, i) => {
+              const active = step === s.key;
+              return (
+                <button
+                  key={s.key}
+                  onClick={() => setStep(s.key)}
+                  className={`flex flex-1 items-center gap-2.5 rounded-lg px-3 py-2.5 text-left transition ${
+                    active
+                      ? "bg-violet-600 text-white shadow-sm"
+                      : "text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200"
+                  }`}
+                >
+                  <span
+                    className={`font-mono text-[11px] ${
+                      active ? "text-white/70" : "text-zinc-600"
+                    }`}
+                  >
+                    {s.num}
+                  </span>
+                  <span className="flex flex-col">
+                    <span className="text-sm font-semibold leading-tight">{s.name}</span>
+                    <span
+                      className={`text-[11px] leading-tight ${
+                        active ? "text-white/70" : "text-zinc-600"
+                      }`}
+                    >
+                      {s.desc}
+                    </span>
+                  </span>
+                  {i < STEPS.length - 1 && (
+                    <span className={`ml-auto hidden text-zinc-600 sm:block ${active ? "text-white/50" : ""}`}>
+                      →
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </nav>
 
           {/* 步骤内容 */}
           <StepContent step={step} project={project} onRefresh={() => void loadProject()} />
+
+          {/* 前后步骤引导 */}
+          <div className="mt-5 flex items-center justify-between">
+            <button
+              onClick={() => setStep(STEPS[Math.max(0, STEPS.findIndex((s) => s.key === step) - 1)].key)}
+              disabled={step === STEPS[0].key}
+              className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-400 transition hover:border-zinc-500 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ← 上一步
+            </button>
+            <span className="text-xs text-zinc-600">
+              {STEPS.findIndex((s) => s.key === step) + 1} / {STEPS.length}
+            </span>
+            <button
+              onClick={() => setStep(STEPS[Math.min(STEPS.length - 1, STEPS.findIndex((s) => s.key === step) + 1)].key)}
+              disabled={step === STEPS[STEPS.length - 1].key}
+              className="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              下一步 →
+            </button>
+          </div>
         </>
       )}
     </main>

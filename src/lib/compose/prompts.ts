@@ -45,13 +45,16 @@ export function buildMotionPrompt(shot: Pick<Shot, "action" | "dialog" | "camera
   const movement = MOVEMENT_CN[camera.movement ?? ""] ?? "镜头轻微缓慢运动";
   const angle = ANGLE_CN[camera.angle ?? ""] ?? "平视";
   const size = SIZE_CN[camera.shotSize ?? ""] ?? "中景";
+  const dialogHint = dialogMotionHint(shot.dialog);
 
   const parts = [
     `${size}${angle}，${movement}`,
     shot.action ? `画面内容：${shot.action}` : "",
     "人物保持自然姿态，轻微呼吸起伏，发丝与衣角随动作自然飘动，眼神灵动",
-    "镜头运动舒缓克制，电影质感，光影连续稳定",
-    "不要大幅动作，不要表情突变，不要文字或水印",
+    dialogHint,
+    "动作连贯流畅，物理合理（重力/惯性自然），手指与五官不变形",
+    "镜头运动舒缓克制，电影质感，光影连续稳定，画面清晰锐利",
+    "不要大幅动作，不要表情突变，不要文字或水印，不要画面闪烁或跳变",
   ];
   return parts.filter(Boolean).join("。") + "。";
 }

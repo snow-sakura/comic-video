@@ -14,7 +14,16 @@ loadEnv();
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function createPrismaClient(): PrismaClient {
-  const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+  const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    max: 20,                      // 最大连接数（默认 10 不够：8 Worker 并发 + API 请求）
+    idleTimeoutMillis: 30000,     // 空闲连接 30s 后回收
+    connectionTimeoutMillis: 5000, // 连接超时 5s（避免无限等待）
+  });
+  // 连接池级错误（如数据库重启后 idle 连接失效）必须监听，否则进程崩溃
+  pool.on("error", (err) => {
+    console.error(`[db] 连接池错误: ${err.message}`);
+  });
   const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter });
 }

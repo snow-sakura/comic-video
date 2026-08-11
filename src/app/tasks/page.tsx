@@ -74,9 +74,12 @@ export default function TasksPage() {
   }, [status]);
 
   useEffect(() => {
-    void load();
+    const t = setTimeout(() => void load(), 0);
     const timer = setInterval(() => void load(), 4000);
-    return () => clearInterval(timer);
+    return () => {
+      clearTimeout(t);
+      clearInterval(timer);
+    };
   }, [load]);
 
   const retry = useCallback(

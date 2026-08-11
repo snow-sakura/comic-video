@@ -71,8 +71,6 @@ export async function runStoryboardEpisode(projectId: string, episodeNumber: num
     role: c.role,
     appearance: (c.appearance ?? {}) as Record<string, string>,
   }));
-  const scenesByName = new Map(scenes.map((s) => [s.location, s]));
-
   const allShots: ShotSpec[] = [];
   for (let i = 0; i < scenes.length; i++) {
     const scene = scenes[i];
@@ -157,8 +155,20 @@ export async function assembleAllShotPrompts(projectId: string, episodeId: strin
     }
   }
   const charAppearance = new Map(chars.map((c) => [c.name, (c.appearance ?? {}) as Record<string, string>]));
+  const sceneMood = new Map(scenes.map((s) => [s.name, s.mood]));
 
   for (const shot of shots) {
+    const app = shot.dialogChar ? charAppearance.get(shot.dialogChar) : undefined;
+    const subject = shot.dialogChar
+      ? [
+          `${shot.dialogChar}：`,
+          app?.costume ? `身穿${app.costume}` : "",
+          app?.hair ? `，${app.hair}` : "",
+          app?.facialMarkers ? `，${app.facialMarkers}` : "",
+          app?.body ? `，${app.body}` : "",
+          shot.dialogEmotion ? `，${shot.dialogEmotion}表情` : "，中性表情",
+        ].join("")
+      : `画面主体：${(shot.action ?? "").slice(0, 40)}`;
     const p7 = buildPrompt7(
       {
         sceneName: shot.sceneName ?? "",
@@ -170,11 +180,9 @@ export async function assembleAllShotPrompts(projectId: string, episodeId: strin
         duration: shot.duration,
       },
       {
-        subject: shot.dialogChar
-          ? `${shot.dialogChar}：${charAppearance.get(shot.dialogChar)?.costume ?? ""}，${charAppearance.get(shot.dialogChar)?.hair ?? ""}，${shot.dialogChar}（${shot.dialogEmotion ?? "平静"}表情）`
-          : `人物：${(shot.action ?? "").slice(0, 40)}`,
+        subject,
         environment: shot.sceneName ?? "",
-        lighting: lightingFor(null, shot.sceneName),
+        lighting: lightingFor(sceneMood.get(shot.sceneName ?? "") ?? null, shot.sceneName),
         styleAnchor: anchor,
       }
     );

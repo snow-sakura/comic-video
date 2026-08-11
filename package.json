@@ -4,9 +4,24 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:all": "bash scripts/dev.sh",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:logging": "tsx scripts/test-logging.ts",
+    "test:providers": "tsx scripts/test-providers.ts",
+    "test:concurrency": "tsx scripts/verify-concurrency.ts",
+    "test:concurrency:real": "tsx scripts/concurrency-test.ts",
+    "test:graceful": "tsx scripts/test-graceful-restart.ts",
+    "check:env": "tsx scripts/check-env.ts",
+    "monitor": "tsx scripts/monitor.ts --watch",
+    "monitor:once": "tsx scripts/monitor.ts",
+    "metrics": "tsx scripts/metrics.ts",
+    "inject": "tsx scripts/inject-tasks.ts",
+    "deploy": "bash scripts/deploy.sh",
+    "worker": "tsx scripts/worker.ts"
   },
   "dependencies": {
     "@ai-sdk/deepseek": "3.0.26",
@@ -33,6 +48,7 @@
     "prisma": "7.9.1",
     "tailwindcss": "^4",
     "tsx": "4.23.11",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "4.1.10"
   }
 }

@@ -9,6 +9,7 @@
  */
 import { Queue } from "bullmq";
 import { getConnection } from "@/lib/queue/connection";
+import { prisma } from "@/lib/db";
 
 export const QUEUE_NAMES = {
   script: "script",
@@ -20,12 +21,32 @@ export const QUEUE_NAMES = {
 
 export type QueueName = (typeof QUEUE_NAMES)[keyof typeof QUEUE_NAMES];
 
+/**
+ * 队列定义
+ * concurrency（Worker 并发数）可通过环境变量动态覆盖，以适配不同资源的服务器：
+ *   WORKER_CONCURRENCY_SCRIPT
+ *   WORKER_CONCURRENCY_IMAGE
+ *   WORKER_CONCURRENCY_VIDEO
+ *   WORKER_CONCURRENCY_AUDIO
+ *   WORKER_CONCURRENCY_COMPOSE
+ *
+ * 调优建议：
+ * - image/video/audio: I/O 密集型（调用外部 API），可适当调高（如 4-8），但需注意 AI 平台的 QPS/并发限流。
+ * - compose: CPU 密集型（ffmpeg 合成），建议不超过服务器 CPU 核心数，默认 1 最安全。
+ * - script: 长任务（LLM），通常 1-2 即可。
+ */
+const getConcurrency = (queueName: string, defaultVal: number): number => {
+  const envKey = `WORKER_CONCURRENCY_${queueName.toUpperCase()}`;
+  const envVal = Number(process.env[envKey]);
+  return Number.isFinite(envVal) && envVal > 0 ? envVal : defaultVal;
+};
+
 export const QUEUE_DEFS: Record<QueueName, { name: string; concurrency: number }> = {
-  script: { name: QUEUE_NAMES.script, concurrency: 1 },
-  image: { name: QUEUE_NAMES.image, concurrency: 2 },
-  video: { name: QUEUE_NAMES.video, concurrency: 2 },
-  audio: { name: QUEUE_NAMES.audio, concurrency: 2 },
-  compose: { name: QUEUE_NAMES.compose, concurrency: 1 },
+  script: { name: QUEUE_NAMES.script, concurrency: getConcurrency("script", 1) },
+  image: { name: QUEUE_NAMES.image, concurrency: getConcurrency("image", 2) },
+  video: { name: QUEUE_NAMES.video, concurrency: getConcurrency("video", 2) },
+  audio: { name: QUEUE_NAMES.audio, concurrency: getConcurrency("audio", 2) },
+  compose: { name: QUEUE_NAMES.compose, concurrency: getConcurrency("compose", 1) },
 };
 
 // ========== Queue 实例（懒创建 + 缓存） ==========
@@ -34,18 +55,21 @@ const queues = new Map<QueueName, Queue>();
 
 export function getQueue(name: QueueName): Queue {
   if (!queues.has(name)) {
-    queues.set(
-      name,
-      new Queue(QUEUE_DEFS[name].name, {
-        connection: getConnection(),
-        defaultJobOptions: {
-          attempts: 3,
-          backoff: { type: "exponential", delay: 5000 },
-          removeOnComplete: { count: 200 },
-          removeOnFail: { count: 500 },
-        },
-      })
-    );
+    const queue = new Queue(QUEUE_DEFS[name].name, {
+      connection: getConnection(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5000 },
+        removeOnComplete: { count: 200 },
+        removeOnFail: { count: 500 },
+      },
+    });
+    // Queue 级错误（如 Redis 断连）必须监听，否则 EventEmitter 无 listener
+    // 会触发 uncaughtException 导致进程崩溃
+    queue.on("error", (err) => {
+      console.error(`[queue:${name}] queue error: ${err.message}`);
+    });
+    queues.set(name, queue);
   }
   return queues.get(name)!;
 }
@@ -65,7 +89,8 @@ export interface EnqueueGenTaskInput {
   markRunning?: boolean;
 }
 
-/** 入队并同步 GenTask 状态（QUEUED → RUNNING） */
+/** 入队并同步 GenTask 状态（QUEUED → RUNNING）
+ *  入队失败（如 Redis 不可用）时标记任务 FAILED 并抛错，避免任务卡在 QUEUED */
 export async function enqueueGenTask(
   queueName: QueueName,
   { taskId, payload, delay = 0, jobId }: EnqueueGenTaskInput
@@ -73,12 +98,22 @@ export async function enqueueGenTask(
   const queue = getQueue(queueName);
   // 默认 jobId = taskId（幂等：同任务不重复入队）；
   // 重试场景必须传新 jobId，否则 BullMQ 返回已完成旧 job 而不重新执行
-  const job = await queue.add(
-    `${taskId}`,
-    { taskId, ...payload },
-    { jobId: jobId ?? taskId, delay, removeOnFail: false }
-  );
-  return job.id ?? taskId;
+  try {
+    const job = await queue.add(
+      `${taskId}`,
+      { taskId, ...payload },
+      { jobId: jobId ?? taskId, delay, removeOnFail: false }
+    );
+    return job.id ?? taskId;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[enqueue] 入队失败 taskId=${taskId} queue=${queueName}: ${msg}`);
+    // 标记任务失败，避免 QUEUED 僵死；DB 不可用时静默
+    await prisma.genTask
+      .update({ where: { id: taskId }, data: { status: "FAILED", error: `入队失败: ${msg}` } })
+      .catch(() => {});
+    throw new Error(`入队失败: ${msg}`);
+  }
 }
 
 /** 关闭所有队列（进程退出/测试清理） */

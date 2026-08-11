@@ -95,11 +95,17 @@ export function removeFile(relPath: string): boolean {
 
 /** 下载 URL 到存储，返回相对路径 */
 export async function downloadToStorage(url: string, cat: StorageCategory, ext?: string): Promise<string> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`下载失败 ${url}: ${res.status}`);
-  const buf = Buffer.from(await res.arrayBuffer());
-  const guessed = ext ?? (extname(new URL(url).pathname) || ".png");
-  return saveFile(cat, buf, guessed);
+  const start = Date.now();
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`下载失败 ${url}: ${res.status}`);
+    const buf = Buffer.from(await res.arrayBuffer());
+    const guessed = ext ?? (extname(new URL(url).pathname) || ".png");
+    return saveFile(cat, buf, guessed);
+  } catch (e) {
+    console.error(`[storage] 下载失败 url=${url} cat=${cat} 耗时=${Date.now() - start}ms error=${e instanceof Error ? e.message : String(e)}`);
+    throw e;
+  }
 }
 
 /** 获取文件扩展名 */

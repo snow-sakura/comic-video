@@ -8,7 +8,7 @@ import { join } from "node:path";
 import type { MusicGenerateOptions, MusicProvider, TaskHandle } from "@/lib/providers/types";
 import { providerError } from "@/lib/providers/types";
 import { getSetting } from "@/lib/providers/settings";
-import { absPath, getCategoryDir, saveFile } from "@/lib/storage";
+import { absPath, getCategoryDir } from "@/lib/storage";
 
 export const MUSIC_PROVIDER_ID = "bgm-library";
 

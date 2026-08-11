@@ -44,124 +44,129 @@ async function syncScenes(projectId: string): Promise<void> {
 // ========== POST 生成 ==========
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const project = await prisma.project.findUnique({ where: { id } });
-  if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+  try {
+    const { id } = await params;
+    const project = await prisma.project.findUnique({ where: { id } });
+    if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
 
-  const body = await req.json().catch(() => ({}));
-  const kind = body?.kind as string | undefined;
-  const refId = body?.refId ? String(body.refId) : undefined;
-  const regenerate = body?.regenerate === true;
+    const body = await req.json().catch(() => ({}));
+    const kind = body?.kind as string | undefined;
+    const refId = body?.refId ? String(body.refId) : undefined;
+    const regenerate = body?.regenerate === true;
 
-  if (!["character", "scene", "prop"].includes(kind ?? "")) {
-    return NextResponse.json({ error: "kind 必须是 character | scene | prop" }, { status: 400 });
-  }
+    if (!["character", "scene", "prop"].includes(kind ?? "")) {
+      return NextResponse.json({ error: "kind 必须是 character | scene | prop" }, { status: 400 });
+    }
 
-  // 运行中任务保护
-  const running = await prisma.genTask.findFirst({
-    where: { projectId: id, type: "IMAGE", status: { in: ["QUEUED", "PROCESSING"] } },
-  });
-  if (running) {
-    return NextResponse.json({ error: "已有图像任务进行中", runningTaskId: running.id }, { status: 409 });
-  }
+    // 运行中任务保护
+    const running = await prisma.genTask.findFirst({
+      where: { projectId: id, type: "IMAGE", status: { in: ["QUEUED", "PROCESSING"] } },
+    });
+    if (running) {
+      return NextResponse.json({ error: "已有图像任务进行中", runningTaskId: running.id }, { status: 409 });
+    }
 
-  const anchor = styleAnchor(project.style as never);
-  let label = "";
-  let prompt = "";
-  let refImages: string[] = [];
-  let refType: "character" | "scene" | "asset" = "character";
-  let refTargetId: string | undefined = refId;
-  let count = 1;
+    const anchor = styleAnchor(project.style as never);
+    let label = "";
+    let prompt = "";
+    let refImages: string[] = [];
+    let refType: "character" | "scene" | "asset" = "character";
+    let refTargetId: string | undefined = refId;
+    let count = 1;
 
-  if (kind === "character") {
-    const character = refId
-      ? await prisma.character.findFirst({ where: { id: refId, projectId: id } })
-      : null;
-    if (!character) return NextResponse.json({ error: "角色不存在" }, { status: 404 });
-    const c = character.appearance as never as { hair?: string; costume?: string; facialMarkers?: string; body?: string; style?: string };
-    const input = {
-      name: character.name,
-      role: character.role,
-      appearance: {
-        hair: c.hair ?? "待定",
-        costume: c.costume ?? "待定",
-        facialMarkers: c.facialMarkers ?? "待定",
-        body: c.body ?? "待定",
-        style: c.style ?? "待定",
-      },
-      refImageIds: character.refImageIds,
-    };
-    // 有已锁定定妆照时用其做参考图（多角度补全）；否则 3 张组图（正面/侧面/全身）
-    if (!regenerate && character.refImageIds.length > 0 && character.status === "APPROVED") {
-      refImages = character.refImageIds;
-      prompt = characterDesignPrompt(input, anchor, "three-quarter");
-      count = 1;
+    if (kind === "character") {
+      const character = refId
+        ? await prisma.character.findFirst({ where: { id: refId, projectId: id } })
+        : null;
+      if (!character) return NextResponse.json({ error: "角色不存在" }, { status: 404 });
+      const c = character.appearance as never as { hair?: string; costume?: string; facialMarkers?: string; body?: string; style?: string };
+      const input = {
+        name: character.name,
+        role: character.role,
+        appearance: {
+          hair: c.hair ?? "待定",
+          costume: c.costume ?? "待定",
+          facialMarkers: c.facialMarkers ?? "待定",
+          body: c.body ?? "待定",
+          style: c.style ?? "待定",
+        },
+        refImageIds: character.refImageIds,
+      };
+      // 有已锁定定妆照时用其做参考图（多角度补全）；否则 3 张组图（正面/侧面/全身）
+      if (!regenerate && character.refImageIds.length > 0 && character.status === "APPROVED") {
+        refImages = character.refImageIds;
+        prompt = characterDesignPrompt(input, anchor, "three-quarter");
+        count = 1;
+      } else {
+        prompt = [
+          characterDesignPrompt(input, anchor, "front"),
+          "另附两张：四分之三侧面像 + 全身像（同一角色，保持外观完全一致）",
+        ].join("\n");
+        count = 3;
+      }
+      label = `角色定妆照·${character.name}`;
+      refType = "character";
+    } else if (kind === "scene") {
+      const scene = refId
+        ? await prisma.scene.findFirst({ where: { id: refId, projectId: id } })
+        : null;
+      if (!scene) return NextResponse.json({ error: "场景不存在" }, { status: 404 });
+      prompt = sceneDesignPrompt(
+        { name: scene.name, description: scene.description, mood: scene.mood, refImageIds: scene.refImageIds },
+        anchor
+      );
+      refImages = scene.refImageIds;
+      label = `场景空镜·${scene.name}`;
+      refType = "scene";
     } else {
-      prompt = [
-        characterDesignPrompt(input, anchor, "front"),
-        "另附两张：四分之三侧面像 + 全身像（同一角色，保持外观完全一致）",
-      ].join("\n");
-      count = 3;
+      const name = body?.name ? String(body.name) : "未命名道具";
+      const desc = body?.desc ? String(body.desc) : "";
+      // 道具走 Asset 表（type PROP）
+      let asset = refId ? await prisma.asset.findFirst({ where: { id: refId, projectId: id, type: "PROP" } }) : null;
+      if (!asset) {
+        asset = await prisma.asset.create({
+          data: { projectId: id, type: "PROP", name, meta: { desc } as never, status: "DRAFTING" },
+        });
+      }
+      prompt = propDesignPrompt(asset.name, desc, anchor);
+      refImages = asset.imageIds;
+      label = `道具设计·${asset.name}`;
+      refType = "asset";
+      refTargetId = asset.id;
     }
-    label = `角色定妆照·${character.name}`;
-    refType = "character";
-  } else if (kind === "scene") {
-    const scene = refId
-      ? await prisma.scene.findFirst({ where: { id: refId, projectId: id } })
-      : null;
-    if (!scene) return NextResponse.json({ error: "场景不存在" }, { status: 404 });
-    prompt = sceneDesignPrompt(
-      { name: scene.name, description: scene.description, mood: scene.mood, refImageIds: scene.refImageIds },
-      anchor
-    );
-    refImages = scene.refImageIds;
-    label = `场景空镜·${scene.name}`;
-    refType = "scene";
-  } else {
-    const name = body?.name ? String(body.name) : "未命名道具";
-    const desc = body?.desc ? String(body.desc) : "";
-    // 道具走 Asset 表（type PROP）
-    let asset = refId ? await prisma.asset.findFirst({ where: { id: refId, projectId: id, type: "PROP" } }) : null;
-    if (!asset) {
-      asset = await prisma.asset.create({
-        data: { projectId: id, type: "PROP", name, meta: { desc } as never, status: "DRAFTING" },
-      });
-    }
-    prompt = propDesignPrompt(asset.name, desc, anchor);
-    refImages = asset.imageIds;
-    label = `道具设计·${asset.name}`;
-    refType = "asset";
-    refTargetId = asset.id;
+
+    const task = await prisma.genTask.create({
+      data: {
+        projectId: id,
+        label,
+        type: "IMAGE",
+        provider: "seedream",
+        model: "seedream-5-0",
+        refType,
+        refId: refTargetId,
+        status: "QUEUED",
+        input: { kind, prompt: prompt.slice(0, 500), refImages: refImages.length } as never,
+      },
+    });
+
+    await enqueueGenTask("image", {
+      taskId: task.id,
+      payload: {
+        prompt,
+        refImages,
+        count,
+        aspectRatio: kind === "character" ? "3:4" : "16:9",
+        refType,
+        refId: refTargetId,
+        category: kind === "character" ? "characters" : kind === "scene" ? "scenes" : "props",
+      },
+    });
+
+    return NextResponse.json({ ok: true, taskId: task.id, kind, refId });
+  } catch (e) {
+    console.error(`[assets] 操作失败: ${e instanceof Error ? e.message : String(e)}`);
+    return NextResponse.json({ error: e instanceof Error ? e.message : "操作失败" }, { status: 500 });
   }
-
-  const task = await prisma.genTask.create({
-    data: {
-      projectId: id,
-      label,
-      type: "IMAGE",
-      provider: "seedream",
-      model: "seedream-5-0",
-      refType,
-      refId: refTargetId,
-      status: "QUEUED",
-      input: { kind, prompt: prompt.slice(0, 500), refImages: refImages.length } as never,
-    },
-  });
-
-  await enqueueGenTask("image", {
-    taskId: task.id,
-    payload: {
-      prompt,
-      refImages,
-      count,
-      aspectRatio: kind === "character" ? "3:4" : "16:9",
-      refType,
-      refId: refTargetId,
-      category: kind === "character" ? "characters" : kind === "scene" ? "scenes" : "props",
-    },
-  });
-
-  return NextResponse.json({ ok: true, taskId: task.id, kind, refId });
 }
 
 // ========== GET 聚合 ==========
