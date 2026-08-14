@@ -24,7 +24,7 @@ import {
 async function llmJson(messages: LLMMessage[]): Promise<unknown | null> {
   try {
     const llm = await getScriptLLM();
-    const raw = await llm.chat(messages, { json: true, temperature: 0.5, maxTokens: 8192 });
+    const raw = await llm.chat(messages, { json: true, temperature: 0.5, maxTokens: 16384 });
     return safeParseJson(raw);
   } catch {
     return null;
@@ -69,6 +69,7 @@ export async function runStoryboardEpisode(projectId: string, episodeNumber: num
   const charCards: CharacterCard[] = chars.map((c) => ({
     name: c.name,
     role: c.role,
+    gender: c.gender,
     appearance: (c.appearance ?? {}) as Record<string, string>,
   }));
   const allShots: ShotSpec[] = [];
@@ -76,7 +77,7 @@ export async function runStoryboardEpisode(projectId: string, episodeNumber: num
     const scene = scenes[i];
     const parsed = await llmJson([
       { role: "system", content: "你是漫剧分镜师，只输出 JSON。" },
-      { role: "user", content: buildStoryboardPrompt(scene, charCards, i, scenes.length) },
+      { role: "user", content: await buildStoryboardPrompt(scene, charCards, i, scenes.length, projectId) },
     ]);
     const rec = parsed ? asRecord(parsed) : null;
     const list = Array.isArray(rec?.shots)
@@ -155,13 +156,16 @@ export async function assembleAllShotPrompts(projectId: string, episodeId: strin
     }
   }
   const charAppearance = new Map(chars.map((c) => [c.name, (c.appearance ?? {}) as Record<string, string>]));
+  const charGender = new Map(chars.map((c) => [c.name, c.gender]));
   const sceneMood = new Map(scenes.map((s) => [s.name, s.mood]));
 
   for (const shot of shots) {
     const app = shot.dialogChar ? charAppearance.get(shot.dialogChar) : undefined;
+    const gender = shot.dialogChar ? charGender.get(shot.dialogChar) : undefined;
     const subject = shot.dialogChar
       ? [
           `${shot.dialogChar}：`,
+          gender === "male" ? "男性" : gender === "female" ? "女性" : "",
           app?.costume ? `身穿${app.costume}` : "",
           app?.hair ? `，${app.hair}` : "",
           app?.facialMarkers ? `，${app.facialMarkers}` : "",

@@ -134,7 +134,7 @@ echo "  网页:  http://localhost:3000"
 echo "  Worker: 五个队列（script/image/video/audio/compose）"
 echo "  Ctrl+C 同时退出全部进程"
 
-# 日志落文件再实时转发：保证 worker 日志快速可见，且进程可独立管控
+# 日志落文件再实时转发：网页（next dev）与 worker 日志都实时显示，进程可独立管控
 DEV_LOG="$PROJECT_DIR/.dev.log"
 WORKER_LOG="$PROJECT_DIR/.worker.log"
 
@@ -142,6 +142,8 @@ npm run dev > "$DEV_LOG" 2>&1 &
 DEV_PID=$!
 npm run worker > "$WORKER_LOG" 2>&1 &
 WORKER_PID=$!
+tail -f "$DEV_LOG" | perl -pe 'BEGIN{$|=1} s/^/[web] /' &
+DEV_TAIL_PID=$!
 tail -f "$WORKER_LOG" | perl -pe 'BEGIN{$|=1} s/^/[worker] /' &
 TAIL_PID=$!
 
@@ -150,6 +152,7 @@ cleanup() {
   echo ""
   echo "  正在停止服务..."
   kill "$TAIL_PID" 2>/dev/null || true
+  kill "$DEV_TAIL_PID" 2>/dev/null || true
   kill "$DEV_PID" 2>/dev/null || true
   kill "$WORKER_PID" 2>/dev/null || true
   # 兜底：等 3 秒后强杀残留，防止进程悬挂
@@ -161,6 +164,7 @@ cleanup() {
   done
   kill -9 "$DEV_PID" "$WORKER_PID" 2>/dev/null || true
   wait "$TAIL_PID" 2>/dev/null || true
+  wait "$DEV_TAIL_PID" 2>/dev/null || true
 }
 trap cleanup INT TERM EXIT
 

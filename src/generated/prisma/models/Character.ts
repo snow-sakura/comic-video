@@ -29,6 +29,7 @@ export type CharacterMinAggregateOutputType = {
   projectId: string | null
   name: string | null
   role: string | null
+  gender: string | null
   voiceId: string | null
   voiceName: string | null
   status: $Enums.AssetStatus | null
@@ -41,6 +42,7 @@ export type CharacterMaxAggregateOutputType = {
   projectId: string | null
   name: string | null
   role: string | null
+  gender: string | null
   voiceId: string | null
   voiceName: string | null
   status: $Enums.AssetStatus | null
@@ -53,6 +55,7 @@ export type CharacterCountAggregateOutputType = {
   projectId: number
   name: number
   role: number
+  gender: number
   appearance: number
   personality: number
   costume: number
@@ -71,6 +74,7 @@ export type CharacterMinAggregateInputType = {
   projectId?: true
   name?: true
   role?: true
+  gender?: true
   voiceId?: true
   voiceName?: true
   status?: true
@@ -83,6 +87,7 @@ export type CharacterMaxAggregateInputType = {
   projectId?: true
   name?: true
   role?: true
+  gender?: true
   voiceId?: true
   voiceName?: true
   status?: true
@@ -95,6 +100,7 @@ export type CharacterCountAggregateInputType = {
   projectId?: true
   name?: true
   role?: true
+  gender?: true
   appearance?: true
   personality?: true
   costume?: true
@@ -184,6 +190,7 @@ export type CharacterGroupByOutputType = {
   projectId: string
   name: string
   role: string
+  gender: string | null
   appearance: runtime.JsonValue
   personality: runtime.JsonValue
   costume: runtime.JsonValue | null
@@ -221,6 +228,7 @@ export type CharacterWhereInput = {
   projectId?: Prisma.StringFilter<"Character"> | string
   name?: Prisma.StringFilter<"Character"> | string
   role?: Prisma.StringFilter<"Character"> | string
+  gender?: Prisma.StringNullableFilter<"Character"> | string | null
   appearance?: Prisma.JsonFilter<"Character">
   personality?: Prisma.JsonFilter<"Character">
   costume?: Prisma.JsonNullableFilter<"Character">
@@ -238,6 +246,7 @@ export type CharacterOrderByWithRelationInput = {
   projectId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   role?: Prisma.SortOrder
+  gender?: Prisma.SortOrderInput | Prisma.SortOrder
   appearance?: Prisma.SortOrder
   personality?: Prisma.SortOrder
   costume?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -258,6 +267,7 @@ export type CharacterWhereUniqueInput = Prisma.AtLeast<{
   projectId?: Prisma.StringFilter<"Character"> | string
   name?: Prisma.StringFilter<"Character"> | string
   role?: Prisma.StringFilter<"Character"> | string
+  gender?: Prisma.StringNullableFilter<"Character"> | string | null
   appearance?: Prisma.JsonFilter<"Character">
   personality?: Prisma.JsonFilter<"Character">
   costume?: Prisma.JsonNullableFilter<"Character">
@@ -275,6 +285,7 @@ export type CharacterOrderByWithAggregationInput = {
   projectId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   role?: Prisma.SortOrder
+  gender?: Prisma.SortOrderInput | Prisma.SortOrder
   appearance?: Prisma.SortOrder
   personality?: Prisma.SortOrder
   costume?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -297,6 +308,7 @@ export type CharacterScalarWhereWithAggregatesInput = {
   projectId?: Prisma.StringWithAggregatesFilter<"Character"> | string
   name?: Prisma.StringWithAggregatesFilter<"Character"> | string
   role?: Prisma.StringWithAggregatesFilter<"Character"> | string
+  gender?: Prisma.StringNullableWithAggregatesFilter<"Character"> | string | null
   appearance?: Prisma.JsonWithAggregatesFilter<"Character">
   personality?: Prisma.JsonWithAggregatesFilter<"Character">
   costume?: Prisma.JsonNullableWithAggregatesFilter<"Character">
@@ -312,6 +324,7 @@ export type CharacterCreateInput = {
   id?: string
   name: string
   role: string
+  gender?: string | null
   appearance: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -329,6 +342,7 @@ export type CharacterUncheckedCreateInput = {
   projectId: string
   name: string
   role: string
+  gender?: string | null
   appearance: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -344,6 +358,7 @@ export type CharacterUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
+  gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   appearance?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -361,6 +376,7 @@ export type CharacterUncheckedUpdateInput = {
   projectId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
+  gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   appearance?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -377,6 +393,7 @@ export type CharacterCreateManyInput = {
   projectId: string
   name: string
   role: string
+  gender?: string | null
   appearance: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -392,6 +409,7 @@ export type CharacterUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
+  gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   appearance?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -408,6 +426,7 @@ export type CharacterUncheckedUpdateManyInput = {
   projectId?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
+  gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   appearance?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -442,6 +461,7 @@ export type CharacterCountOrderByAggregateInput = {
   projectId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   role?: Prisma.SortOrder
+  gender?: Prisma.SortOrder
   appearance?: Prisma.SortOrder
   personality?: Prisma.SortOrder
   costume?: Prisma.SortOrder
@@ -458,6 +478,7 @@ export type CharacterMaxOrderByAggregateInput = {
   projectId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   role?: Prisma.SortOrder
+  gender?: Prisma.SortOrder
   voiceId?: Prisma.SortOrder
   voiceName?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -470,6 +491,7 @@ export type CharacterMinOrderByAggregateInput = {
   projectId?: Prisma.SortOrder
   name?: Prisma.SortOrder
   role?: Prisma.SortOrder
+  gender?: Prisma.SortOrder
   voiceId?: Prisma.SortOrder
   voiceName?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -536,6 +558,7 @@ export type CharacterCreateWithoutProjectInput = {
   id?: string
   name: string
   role: string
+  gender?: string | null
   appearance: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -551,6 +574,7 @@ export type CharacterUncheckedCreateWithoutProjectInput = {
   id?: string
   name: string
   role: string
+  gender?: string | null
   appearance: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -596,6 +620,7 @@ export type CharacterScalarWhereInput = {
   projectId?: Prisma.StringFilter<"Character"> | string
   name?: Prisma.StringFilter<"Character"> | string
   role?: Prisma.StringFilter<"Character"> | string
+  gender?: Prisma.StringNullableFilter<"Character"> | string | null
   appearance?: Prisma.JsonFilter<"Character">
   personality?: Prisma.JsonFilter<"Character">
   costume?: Prisma.JsonNullableFilter<"Character">
@@ -611,6 +636,7 @@ export type CharacterCreateManyProjectInput = {
   id?: string
   name: string
   role: string
+  gender?: string | null
   appearance: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -626,6 +652,7 @@ export type CharacterUpdateWithoutProjectInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
+  gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   appearance?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -641,6 +668,7 @@ export type CharacterUncheckedUpdateWithoutProjectInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
+  gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   appearance?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -656,6 +684,7 @@ export type CharacterUncheckedUpdateManyWithoutProjectInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   name?: Prisma.StringFieldUpdateOperationsInput | string
   role?: Prisma.StringFieldUpdateOperationsInput | string
+  gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   appearance?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   personality?: Prisma.JsonNullValueInput | runtime.InputJsonValue
   costume?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
@@ -674,6 +703,7 @@ export type CharacterSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   projectId?: boolean
   name?: boolean
   role?: boolean
+  gender?: boolean
   appearance?: boolean
   personality?: boolean
   costume?: boolean
@@ -691,6 +721,7 @@ export type CharacterSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   projectId?: boolean
   name?: boolean
   role?: boolean
+  gender?: boolean
   appearance?: boolean
   personality?: boolean
   costume?: boolean
@@ -708,6 +739,7 @@ export type CharacterSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   projectId?: boolean
   name?: boolean
   role?: boolean
+  gender?: boolean
   appearance?: boolean
   personality?: boolean
   costume?: boolean
@@ -725,6 +757,7 @@ export type CharacterSelectScalar = {
   projectId?: boolean
   name?: boolean
   role?: boolean
+  gender?: boolean
   appearance?: boolean
   personality?: boolean
   costume?: boolean
@@ -736,7 +769,7 @@ export type CharacterSelectScalar = {
   updatedAt?: boolean
 }
 
-export type CharacterOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "projectId" | "name" | "role" | "appearance" | "personality" | "costume" | "refImageIds" | "voiceId" | "voiceName" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["character"]>
+export type CharacterOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "projectId" | "name" | "role" | "gender" | "appearance" | "personality" | "costume" | "refImageIds" | "voiceId" | "voiceName" | "status" | "createdAt" | "updatedAt", ExtArgs["result"]["character"]>
 export type CharacterInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   project?: boolean | Prisma.ProjectDefaultArgs<ExtArgs>
 }
@@ -757,6 +790,7 @@ export type $CharacterPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     projectId: string
     name: string
     role: string
+    gender: string | null
     appearance: runtime.JsonValue
     personality: runtime.JsonValue
     costume: runtime.JsonValue | null
@@ -1194,6 +1228,7 @@ export interface CharacterFieldRefs {
   readonly projectId: Prisma.FieldRef<"Character", 'String'>
   readonly name: Prisma.FieldRef<"Character", 'String'>
   readonly role: Prisma.FieldRef<"Character", 'String'>
+  readonly gender: Prisma.FieldRef<"Character", 'String'>
   readonly appearance: Prisma.FieldRef<"Character", 'Json'>
   readonly personality: Prisma.FieldRef<"Character", 'Json'>
   readonly costume: Prisma.FieldRef<"Character", 'Json'>

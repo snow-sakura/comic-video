@@ -87,6 +87,8 @@ export interface ImageGenerateOptions {
   negativePrompt?: string;
   /** 出图比例 */
   aspectRatio?: "1:1" | "16:9" | "9:16" | "3:4" | "4:3";
+  /** 保存目录覆盖（默认按 count 推断：>1 → characters，否则 shots） */
+  category?: "novels" | "characters" | "scenes" | "props" | "shots" | "clips" | "videos" | "audio" | "subs" | "bgm" | "sfx" | "exports" | "temp";
 }
 
 export interface ImageProvider {
@@ -139,6 +141,8 @@ export interface TTSSynthesizeOptions {
   rate?: number; // 0.5 - 2.0
   /** 输出采样率 */
   sampleRate?: 16000 | 24000 | 48000;
+  /** 输出音频格式（cosyvoice：mp3/wav/pcm；edge-tts 固定 mp3） */
+  format?: "mp3" | "wav" | "pcm" | "ogg";
 }
 
 export interface TTSSubtitle {

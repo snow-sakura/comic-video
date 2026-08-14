@@ -75,10 +75,7 @@
 }
 
 body {
-  /* 米白纸感底 + 极淡暖调渐变 + 点状纸纹 */
-  background:
-    radial-gradient(rgba(110, 143, 94, 0.05) 1px, transparent 1px) 0 0 / 22px 22px,
-    linear-gradient(180deg, #faf7f0 0%, #f4efe4 100%);
+  /* 统一底色：单一米白纸感（去除渐变，避免长页面下滑出现色差） */
   background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
@@ -106,4 +103,13 @@ body {
 /* 选区用抹茶色 */
 ::selection {
   background: rgba(147, 181, 131, 0.35);
+}
+
+/* 入场动画 */
+@keyframes animate-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-in {
+  animation: animate-in 0.2s ease-out;
 }

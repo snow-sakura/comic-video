@@ -4,10 +4,11 @@
  */
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getPipelinePaused } from "@/lib/pipeline";
 import type { TaskStatus } from "@/generated/prisma/enums";
 
 const PAGE_SIZE_DEFAULT = 30;
-const VALID_STATUS: TaskStatus[] = ["QUEUED", "PROCESSING", "DONE", "FAILED", "REJECTED"];
+const VALID_STATUS: TaskStatus[] = ["QUEUED", "PROCESSING", "DONE", "FAILED", "REJECTED", "PAUSED"];
 
 export async function GET(req: Request): Promise<NextResponse> {
   try {
@@ -43,6 +44,7 @@ export async function GET(req: Request): Promise<NextResponse> {
       total,
       page,
       pageSize,
+      paused: await getPipelinePaused(), // 流水线暂停状态（任务中心轮询同步）
       tasks: tasks.map((t) => ({
         id: t.id,
         projectId: t.projectId,

@@ -86,16 +86,21 @@ export interface TTSConfig {
 
 const cache = new Map<string, string>();
 let cacheLoaded = false;
+let cacheLoadedAt = 0; // 上次加载时间戳
+const CACHE_TTL = 60_000; // 缓存有效期 60 秒
 
 async function loadAllFromDb(): Promise<void> {
-  if (cacheLoaded) return;
+  const now = Date.now();
+  if (cacheLoaded && now - cacheLoadedAt < CACHE_TTL) return;
   try {
     const rows = await prisma.providerSetting.findMany();
+    cache.clear();
     for (const row of rows) cache.set(row.key, row.value);
   } catch {
     // DB 不可用时退回环境变量
   }
   cacheLoaded = true;
+  cacheLoadedAt = now;
 }
 
 function envMap(key: string): string | undefined {
@@ -167,7 +172,11 @@ export async function getTTSConfig(): Promise<TTSConfig> {
     apiKey: await getSetting<string>("tts.apiKey"),
     model: await getSetting<string>("tts.model"),
     voice: await getSetting<string>("tts.voice"),
-    baseUrl: await getSetting<string>("tts.baseUrl"),
+    // 兼容两种写法：TTS_BASE_URL（DB: tts.baseUrl）优先，TTS_API_URL 次之
+    baseUrl:
+      (await getSetting<string>("tts.baseUrl")) ||
+      process.env.TTS_API_URL ||
+      undefined,
   };
 }
 
@@ -201,6 +210,7 @@ export async function getAllSettings(): Promise<Record<string, string>> {
 /** 重置缓存（设置页保存后调用） */
 export function invalidateSettingCache(): void {
   cacheLoaded = false;
+  cacheLoadedAt = 0;
   cache.clear();
 }
 
@@ -243,7 +253,7 @@ export async function shouldUseMock(category: ProviderCategory): Promise<boolean
   if (category === "tts") {
     const engine = (await getSetting<string>("tts.engine")) ?? "";
     if (!engine) return true; // 未配置引擎 → Mock
-    if (engine === "edge-tts") return false; // 微软 Edge TTS 无需 Key
+    if (engine === "edge-tts" || engine === "confucius4") return false; // 免费引擎无需 Key
     const key = await getSetting<string>("tts.apiKey");
     return !key;
   }

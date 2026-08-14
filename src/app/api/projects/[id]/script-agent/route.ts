@@ -19,6 +19,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const body = await req.json().catch(() => ({}));
     const stage = body?.stage as string | undefined;
     const episodeNumber = body?.episodeNumber ? Number(body.episodeNumber) : undefined;
+    // 用户定制集数（提炼角色后可选覆盖，生成大纲按此数量）
+    const episodeCount = body?.episodeCount ? Math.round(Number(body.episodeCount)) : undefined;
+    if (episodeCount !== undefined && (!Number.isFinite(episodeCount) || episodeCount < 1 || episodeCount > 60)) {
+      return NextResponse.json({ error: "集数必须在 1-60 之间" }, { status: 400 });
+    }
     if (!["characters", "outline", "script"].includes(stage ?? "")) {
       return NextResponse.json({ error: "stage 必须是 characters | outline | script" }, { status: 400 });
     }
@@ -53,7 +58,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         provider: "script-agent",
         model: stage!,
         status: "QUEUED",
-        input: { stage, episodeNumber } as never,
+        input: { stage, episodeNumber, episodeCount } as never,
       },
     });
 
@@ -63,6 +68,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         agent: stage,
         projectId: id,
         ...(episodeNumber ? { episodeNumber } : {}),
+        ...(episodeCount !== undefined ? { episodeCount } : {}),
       },
     });
 
@@ -93,18 +99,28 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     worldView?: string;
     logline?: string;
   };
+  const episodesContent = content.episodes ?? [];
   // 已生成 = 带完整场景列表的集
-  const generatedEpisodes = (content.episodes ?? []).filter(
+  const generatedEpisodes = episodesContent.filter(
     (e) => e && Array.isArray(e.scenes) && e.scenes.length > 0
   ).length;
+  // 按集号索引的分集剧本（前端「展开分集剧本」读取，之前缺失导致永远显示空态）
+  const episodeScripts: Record<number, unknown> = {};
+  for (const e of episodesContent) {
+    if (e && typeof e.number === "number" && Array.isArray(e.scenes) && e.scenes.length > 0) {
+      episodeScripts[e.number] = e;
+    }
+  }
   return NextResponse.json({
     stage: await getScriptStage(id),
     hasNovel: Boolean(project.novelText),
+    episodeCount: project.episodeCount ?? 6,
     chapters: ((project.novelMeta as { chapters?: unknown[] } | null)?.chapters?.length) ?? 0,
     characters,
     logline: script?.logline ?? null,
     worldView: content.worldView ?? null,
     generatedEpisodes,
+    episodeScripts,
     episodes,
     runningTask: runningTask
       ? { id: runningTask.id, label: runningTask.label, status: runningTask.status, error: runningTask.error }

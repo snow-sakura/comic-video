@@ -20,8 +20,18 @@ export type ProjectModel = runtime.Types.Result.DefaultSelection<Prisma.$Project
 
 export type AggregateProject = {
   _count: ProjectCountAggregateOutputType | null
+  _avg: ProjectAvgAggregateOutputType | null
+  _sum: ProjectSumAggregateOutputType | null
   _min: ProjectMinAggregateOutputType | null
   _max: ProjectMaxAggregateOutputType | null
+}
+
+export type ProjectAvgAggregateOutputType = {
+  episodeCount: number | null
+}
+
+export type ProjectSumAggregateOutputType = {
+  episodeCount: number | null
 }
 
 export type ProjectMinAggregateOutputType = {
@@ -30,6 +40,7 @@ export type ProjectMinAggregateOutputType = {
   status: $Enums.ProjectStatus | null
   novelPath: string | null
   novelText: string | null
+  episodeCount: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -40,6 +51,7 @@ export type ProjectMaxAggregateOutputType = {
   status: $Enums.ProjectStatus | null
   novelPath: string | null
   novelText: string | null
+  episodeCount: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -52,11 +64,20 @@ export type ProjectCountAggregateOutputType = {
   novelPath: number
   novelText: number
   novelMeta: number
+  episodeCount: number
   createdAt: number
   updatedAt: number
   _all: number
 }
 
+
+export type ProjectAvgAggregateInputType = {
+  episodeCount?: true
+}
+
+export type ProjectSumAggregateInputType = {
+  episodeCount?: true
+}
 
 export type ProjectMinAggregateInputType = {
   id?: true
@@ -64,6 +85,7 @@ export type ProjectMinAggregateInputType = {
   status?: true
   novelPath?: true
   novelText?: true
+  episodeCount?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -74,6 +96,7 @@ export type ProjectMaxAggregateInputType = {
   status?: true
   novelPath?: true
   novelText?: true
+  episodeCount?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -86,6 +109,7 @@ export type ProjectCountAggregateInputType = {
   novelPath?: true
   novelText?: true
   novelMeta?: true
+  episodeCount?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -129,6 +153,18 @@ export type ProjectAggregateArgs<ExtArgs extends runtime.Types.Extensions.Intern
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: ProjectAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: ProjectSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: ProjectMinAggregateInputType
@@ -159,6 +195,8 @@ export type ProjectGroupByArgs<ExtArgs extends runtime.Types.Extensions.Internal
   take?: number
   skip?: number
   _count?: ProjectCountAggregateInputType | true
+  _avg?: ProjectAvgAggregateInputType
+  _sum?: ProjectSumAggregateInputType
   _min?: ProjectMinAggregateInputType
   _max?: ProjectMaxAggregateInputType
 }
@@ -171,9 +209,12 @@ export type ProjectGroupByOutputType = {
   novelPath: string | null
   novelText: string | null
   novelMeta: runtime.JsonValue | null
+  episodeCount: number
   createdAt: Date
   updatedAt: Date
   _count: ProjectCountAggregateOutputType | null
+  _avg: ProjectAvgAggregateOutputType | null
+  _sum: ProjectSumAggregateOutputType | null
   _min: ProjectMinAggregateOutputType | null
   _max: ProjectMaxAggregateOutputType | null
 }
@@ -204,6 +245,7 @@ export type ProjectWhereInput = {
   novelPath?: Prisma.StringNullableFilter<"Project"> | string | null
   novelText?: Prisma.StringNullableFilter<"Project"> | string | null
   novelMeta?: Prisma.JsonNullableFilter<"Project">
+  episodeCount?: Prisma.IntFilter<"Project"> | number
   createdAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   scripts?: Prisma.ScriptListRelationFilter
@@ -222,6 +264,7 @@ export type ProjectOrderByWithRelationInput = {
   novelPath?: Prisma.SortOrderInput | Prisma.SortOrder
   novelText?: Prisma.SortOrderInput | Prisma.SortOrder
   novelMeta?: Prisma.SortOrderInput | Prisma.SortOrder
+  episodeCount?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   scripts?: Prisma.ScriptOrderByRelationAggregateInput
@@ -243,6 +286,7 @@ export type ProjectWhereUniqueInput = Prisma.AtLeast<{
   novelPath?: Prisma.StringNullableFilter<"Project"> | string | null
   novelText?: Prisma.StringNullableFilter<"Project"> | string | null
   novelMeta?: Prisma.JsonNullableFilter<"Project">
+  episodeCount?: Prisma.IntFilter<"Project"> | number
   createdAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Project"> | Date | string
   scripts?: Prisma.ScriptListRelationFilter
@@ -261,11 +305,14 @@ export type ProjectOrderByWithAggregationInput = {
   novelPath?: Prisma.SortOrderInput | Prisma.SortOrder
   novelText?: Prisma.SortOrderInput | Prisma.SortOrder
   novelMeta?: Prisma.SortOrderInput | Prisma.SortOrder
+  episodeCount?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ProjectCountOrderByAggregateInput
+  _avg?: Prisma.ProjectAvgOrderByAggregateInput
   _max?: Prisma.ProjectMaxOrderByAggregateInput
   _min?: Prisma.ProjectMinOrderByAggregateInput
+  _sum?: Prisma.ProjectSumOrderByAggregateInput
 }
 
 export type ProjectScalarWhereWithAggregatesInput = {
@@ -279,6 +326,7 @@ export type ProjectScalarWhereWithAggregatesInput = {
   novelPath?: Prisma.StringNullableWithAggregatesFilter<"Project"> | string | null
   novelText?: Prisma.StringNullableWithAggregatesFilter<"Project"> | string | null
   novelMeta?: Prisma.JsonNullableWithAggregatesFilter<"Project">
+  episodeCount?: Prisma.IntWithAggregatesFilter<"Project"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Project"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Project"> | Date | string
 }
@@ -291,6 +339,7 @@ export type ProjectCreateInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptCreateNestedManyWithoutProjectInput
@@ -309,6 +358,7 @@ export type ProjectUncheckedCreateInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptUncheckedCreateNestedManyWithoutProjectInput
@@ -327,6 +377,7 @@ export type ProjectUpdateInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUpdateManyWithoutProjectNestedInput
@@ -345,6 +396,7 @@ export type ProjectUncheckedUpdateInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUncheckedUpdateManyWithoutProjectNestedInput
@@ -363,6 +415,7 @@ export type ProjectCreateManyInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -375,6 +428,7 @@ export type ProjectUpdateManyMutationInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -387,6 +441,7 @@ export type ProjectUncheckedUpdateManyInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -399,8 +454,13 @@ export type ProjectCountOrderByAggregateInput = {
   novelPath?: Prisma.SortOrder
   novelText?: Prisma.SortOrder
   novelMeta?: Prisma.SortOrder
+  episodeCount?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type ProjectAvgOrderByAggregateInput = {
+  episodeCount?: Prisma.SortOrder
 }
 
 export type ProjectMaxOrderByAggregateInput = {
@@ -409,6 +469,7 @@ export type ProjectMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   novelPath?: Prisma.SortOrder
   novelText?: Prisma.SortOrder
+  episodeCount?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -419,8 +480,13 @@ export type ProjectMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   novelPath?: Prisma.SortOrder
   novelText?: Prisma.SortOrder
+  episodeCount?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type ProjectSumOrderByAggregateInput = {
+  episodeCount?: Prisma.SortOrder
 }
 
 export type ProjectScalarRelationFilter = {
@@ -443,6 +509,14 @@ export type EnumProjectStatusFieldUpdateOperationsInput = {
 
 export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
+}
+
+export type IntFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
 }
 
 export type DateTimeFieldUpdateOperationsInput = {
@@ -543,6 +617,7 @@ export type ProjectCreateWithoutScriptsInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   characters?: Prisma.CharacterCreateNestedManyWithoutProjectInput
@@ -560,6 +635,7 @@ export type ProjectUncheckedCreateWithoutScriptsInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   characters?: Prisma.CharacterUncheckedCreateNestedManyWithoutProjectInput
@@ -593,6 +669,7 @@ export type ProjectUpdateWithoutScriptsInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   characters?: Prisma.CharacterUpdateManyWithoutProjectNestedInput
@@ -610,6 +687,7 @@ export type ProjectUncheckedUpdateWithoutScriptsInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   characters?: Prisma.CharacterUncheckedUpdateManyWithoutProjectNestedInput
@@ -627,6 +705,7 @@ export type ProjectCreateWithoutCharactersInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptCreateNestedManyWithoutProjectInput
@@ -644,6 +723,7 @@ export type ProjectUncheckedCreateWithoutCharactersInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptUncheckedCreateNestedManyWithoutProjectInput
@@ -677,6 +757,7 @@ export type ProjectUpdateWithoutCharactersInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUpdateManyWithoutProjectNestedInput
@@ -694,6 +775,7 @@ export type ProjectUncheckedUpdateWithoutCharactersInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUncheckedUpdateManyWithoutProjectNestedInput
@@ -711,6 +793,7 @@ export type ProjectCreateWithoutScenesInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptCreateNestedManyWithoutProjectInput
@@ -728,6 +811,7 @@ export type ProjectUncheckedCreateWithoutScenesInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptUncheckedCreateNestedManyWithoutProjectInput
@@ -761,6 +845,7 @@ export type ProjectUpdateWithoutScenesInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUpdateManyWithoutProjectNestedInput
@@ -778,6 +863,7 @@ export type ProjectUncheckedUpdateWithoutScenesInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUncheckedUpdateManyWithoutProjectNestedInput
@@ -795,6 +881,7 @@ export type ProjectCreateWithoutAssetsInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptCreateNestedManyWithoutProjectInput
@@ -812,6 +899,7 @@ export type ProjectUncheckedCreateWithoutAssetsInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptUncheckedCreateNestedManyWithoutProjectInput
@@ -845,6 +933,7 @@ export type ProjectUpdateWithoutAssetsInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUpdateManyWithoutProjectNestedInput
@@ -862,6 +951,7 @@ export type ProjectUncheckedUpdateWithoutAssetsInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUncheckedUpdateManyWithoutProjectNestedInput
@@ -879,6 +969,7 @@ export type ProjectCreateWithoutEpisodesInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptCreateNestedManyWithoutProjectInput
@@ -896,6 +987,7 @@ export type ProjectUncheckedCreateWithoutEpisodesInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptUncheckedCreateNestedManyWithoutProjectInput
@@ -929,6 +1021,7 @@ export type ProjectUpdateWithoutEpisodesInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUpdateManyWithoutProjectNestedInput
@@ -946,6 +1039,7 @@ export type ProjectUncheckedUpdateWithoutEpisodesInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUncheckedUpdateManyWithoutProjectNestedInput
@@ -963,6 +1057,7 @@ export type ProjectCreateWithoutTasksInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptCreateNestedManyWithoutProjectInput
@@ -980,6 +1075,7 @@ export type ProjectUncheckedCreateWithoutTasksInput = {
   novelPath?: string | null
   novelText?: string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   scripts?: Prisma.ScriptUncheckedCreateNestedManyWithoutProjectInput
@@ -1013,6 +1109,7 @@ export type ProjectUpdateWithoutTasksInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUpdateManyWithoutProjectNestedInput
@@ -1030,6 +1127,7 @@ export type ProjectUncheckedUpdateWithoutTasksInput = {
   novelPath?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   novelMeta?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  episodeCount?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scripts?: Prisma.ScriptUncheckedUpdateManyWithoutProjectNestedInput
@@ -1123,6 +1221,7 @@ export type ProjectSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   novelPath?: boolean
   novelText?: boolean
   novelMeta?: boolean
+  episodeCount?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   scripts?: boolean | Prisma.Project$scriptsArgs<ExtArgs>
@@ -1142,6 +1241,7 @@ export type ProjectSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   novelPath?: boolean
   novelText?: boolean
   novelMeta?: boolean
+  episodeCount?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["project"]>
@@ -1154,6 +1254,7 @@ export type ProjectSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   novelPath?: boolean
   novelText?: boolean
   novelMeta?: boolean
+  episodeCount?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["project"]>
@@ -1166,11 +1267,12 @@ export type ProjectSelectScalar = {
   novelPath?: boolean
   novelText?: boolean
   novelMeta?: boolean
+  episodeCount?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "status" | "style" | "novelPath" | "novelText" | "novelMeta" | "createdAt" | "updatedAt", ExtArgs["result"]["project"]>
+export type ProjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "title" | "status" | "style" | "novelPath" | "novelText" | "novelMeta" | "episodeCount" | "createdAt" | "updatedAt", ExtArgs["result"]["project"]>
 export type ProjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   scripts?: boolean | Prisma.Project$scriptsArgs<ExtArgs>
   characters?: boolean | Prisma.Project$charactersArgs<ExtArgs>
@@ -1201,6 +1303,7 @@ export type $ProjectPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     novelPath: string | null
     novelText: string | null
     novelMeta: runtime.JsonValue | null
+    episodeCount: number
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["project"]>
@@ -1639,6 +1742,7 @@ export interface ProjectFieldRefs {
   readonly novelPath: Prisma.FieldRef<"Project", 'String'>
   readonly novelText: Prisma.FieldRef<"Project", 'String'>
   readonly novelMeta: Prisma.FieldRef<"Project", 'Json'>
+  readonly episodeCount: Prisma.FieldRef<"Project", 'Int'>
   readonly createdAt: Prisma.FieldRef<"Project", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Project", 'DateTime'>
 }

@@ -26,6 +26,7 @@ export interface QueueConnection {
   maxRetries: number; // 断连后重试次数（-1=无限，生产用有限值避免雪崩）
   reconnectOnError: (err: Error) => boolean; // 只对只读错误自动重连
   enableOfflineQueue: boolean; // 断连期间命令排队（false=快速失败）
+  retryStrategy?: (times: number) => number | void | Error; // 重连策略（返回延迟 ms）
 }
 
 /** BullMQ 接受的连接参数（ioredis 兼容） */
@@ -50,5 +51,21 @@ export function getConnection(): QueueConnection {
     // 断连期间入队命令直接失败（触发 enqueueGenTask 的 catch → 标记 FAILED），
     // 避免命令在 offline queue 无限堆积占用内存
     enableOfflineQueue: false,
+  };
+}
+
+/**
+ * Worker 专用连接：断连期间命令排队等待重连（enableOfflineQueue: true）+ 指数退避重连。
+ *
+ * 为什么与 Queue 不同：Worker 持阻塞命令（BRPOPLPUSH）且任务可能执行数分钟
+ * （视频轮询最长 20 分钟），断连期间若快速失败，处理中的 job 会抛
+ * "Stream isn't writeable" 并被错误重试/标记失败（.worker.log 曾出现大量该错误）。
+ * 排队 + 重连可在 Redis 短暂重启后无缝恢复；Worker 侧排队的命令量级很小（仅处理中 job）。
+ */
+export function getWorkerConnection(): QueueConnection {
+  return {
+    ...getConnection(),
+    enableOfflineQueue: true,
+    retryStrategy: (times: number) => Math.min(times * 1000, 15000), // 1s → 2s → … → 15s 上限
   };
 }

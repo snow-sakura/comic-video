@@ -1,10 +1,12 @@
 /**
- * 图像供应商实现：智谱 CogView(默认) / 火山方舟 Seedream 5.0 / Mock
+ * 图像供应商实现：智谱 CogView(默认) / 火山方舟 Seedream 5.0 / Agnes AI / Mock
  *
  * 所有 provider 仅读取 image.* 分类配置（image.apiKey / image.model / image.baseUrl）。
  * - CogView（cogview-3-flash / glm-image）：POST {baseUrl}/images/generations
  *   返回 { data: [{ url }] }。CogView 为纯文生图，不支持多参考图，refImages 将被忽略。
  * - Seedream：支持多参考图与组图模式。
+ * - Agnes（agnes-image-2.0-flash）：OpenAI 兼容 /images/generations，
+ *   输出参数放在 extra_body.response_format，图生图参考图放 extra_body.image（URL 或 Data URI）。
  */
 import type {
   ImageGenerateOptions,
@@ -17,6 +19,7 @@ import { downloadToStorage, toDataUri, fileExists } from "@/lib/storage";
 
 export const COGVIEW_PROVIDER_ID = "cogview";
 export const SEEDREAM_PROVIDER_ID = "seedream";
+export const AGNES_PROVIDER_ID = "agnes";
 
 // ========== 智谱 CogView ==========
 
@@ -100,12 +103,12 @@ export function createCogViewProvider(): ImageProvider {
           throw providerError("cogview", "图像生成返回空结果", "UPSTREAM", true);
         }
         if (item.url) {
-          const category = count > 1 ? "characters" : "shots";
+          const category = opts.category ?? (count > 1 ? "characters" : "shots");
           imagePaths.push(await downloadToStorage(item.url, category, ".png"));
         } else if (item.b64_json) {
           // 极少数情况返回 base64
           const { saveFile } = await import("@/lib/storage");
-          imagePaths.push(saveFile("shots", Buffer.from(item.b64_json, "base64"), ".png"));
+          imagePaths.push(saveFile(opts.category ?? "shots", Buffer.from(item.b64_json, "base64"), ".png"));
         }
       }
 
@@ -202,7 +205,7 @@ export function createSeedreamProvider(): ImageProvider {
         throw providerError("seedream", "图像生成返回空结果", "UPSTREAM", true);
       }
 
-      const category = count > 1 ? "characters" : "shots";
+      const category = opts.category ?? (count > 1 ? "characters" : "shots");
       const imagePaths: string[] = [];
       for (const url of urls) {
         imagePaths.push(await downloadToStorage(url, category, ".png"));
@@ -211,6 +214,126 @@ export function createSeedreamProvider(): ImageProvider {
       console.log(`[image:seedream] 成功 model=${model} count=${imagePaths.length} 总耗时=${elapsed()}ms`);
       return {
         taskId: `seedream-${Date.now()}`,
+        status: "done",
+        result: { imagePaths },
+      };
+    },
+  };
+}
+
+// ========== Agnes AI（agnes-image-2.0-flash，OpenAI 兼容） ==========
+
+/** 出图比例 → Agnes 推荐尺寸（WxH 格式） */
+function agnesSize(aspect?: string): string {
+  switch (aspect) {
+    case "16:9": return "1024x768";
+    case "9:16": return "768x1024";
+    case "3:4": return "768x1024";
+    case "4:3": return "1024x768";
+    case "1:1":
+    default: return "1024x1024";
+  }
+}
+
+export function createAgnesImageProvider(): ImageProvider {
+  return {
+    id: AGNES_PROVIDER_ID,
+    displayName: "Agnes Image 2.0 Flash",
+    async generate(opts: ImageGenerateOptions): Promise<TaskHandle<{ imagePaths: string[] }>> {
+      const cfg = await getImageConfig();
+      const count = Math.max(1, opts.count ?? 1);
+      const size = agnesSize(opts.aspectRatio);
+      console.log(`[image:agnes] 调用 model=${cfg.model} baseUrl=${cfg.baseUrl} key=${maskKey(cfg.apiKey)} size=${size} count=${count} refImages=${opts.refImages?.length ?? 0} prompt="${(opts.prompt ?? "").slice(0, 60)}..."`);
+      const totalElapsed = startTimer();
+      if (!cfg.apiKey) {
+        console.error(`[image:agnes] 鉴权失败：IMAGE_API_KEY 未配置 耗时=${totalElapsed()}ms`);
+        throw providerError("agnes", "未配置 IMAGE_API_KEY（Agnes AI）", "UNAUTHORIZED", false);
+      }
+
+      // 参考图：本地文件 → Data URI（Agnes 支持公网 URL 或 Data URI Base64）
+      const refImages: string[] = [];
+      for (const ref of opts.refImages ?? []) {
+        if (ref.startsWith("http")) {
+          refImages.push(ref);
+        } else if (fileExists(ref)) {
+          const mime = ref.endsWith(".jpg") || ref.endsWith(".jpeg") ? "image/jpeg" : "image/png";
+          refImages.push(toDataUri(ref, mime));
+        }
+      }
+
+      const imagePaths: string[] = [];
+      // Agnes 单次出 1 张，count>1 时串行多次调用
+      for (let i = 0; i < count; i++) {
+        const body: Record<string, unknown> = {
+          model: cfg.model,
+          prompt: opts.prompt,
+          size,
+          extra_body: {
+            response_format: "url",
+          },
+        };
+        // 参考图放 extra_body.image（图生图/多图合成）
+        if (refImages.length > 0) {
+          (body.extra_body as Record<string, unknown>).image = refImages;
+        }
+        if (opts.negativePrompt) {
+          (body.extra_body as Record<string, unknown>).negative_prompt = opts.negativePrompt;
+        }
+
+        const url = `${cfg.baseUrl}/images/generations`;
+        const elapsed = startTimer();
+        let res: Response;
+        try {
+          res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${cfg.apiKey}`,
+            },
+            body: JSON.stringify(body),
+          });
+        } catch (e) {
+          console.error(`[image:agnes] 网络错误 url=${url} model=${cfg.model} round=${i + 1}/${count} 耗时=${elapsed()}ms error=${e instanceof Error ? e.message : String(e)}`);
+          throw providerError("agnes", `图像生成网络错误: ${e instanceof Error ? e.message : String(e)}`, "UPSTREAM", true);
+        }
+        console.log(`[image:agnes] 响应 status=${res.status} 耗时=${elapsed()}ms round=${i + 1}/${count}`);
+
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          console.error(`[image:agnes] 失败 status=${res.status} url=${url} model=${cfg.model} 耗时=${elapsed()}ms body=${errText.slice(0, 300)}`);
+          throw providerError(
+            "agnes",
+            `图像生成失败 ${res.status}: ${errText.slice(0, 300)}`,
+            res.status === 401 ? "UNAUTHORIZED" : "UPSTREAM",
+            res.status >= 500
+          );
+        }
+
+        const data = (await res.json()) as {
+          data?: { url?: string; b64_json?: string }[];
+          error?: { message?: string; code?: string };
+        };
+        if (data.error) {
+          console.error(`[image:agnes] 上游错误 code=${data.error.code} message=${data.error.message} 耗时=${elapsed()}ms`);
+          throw providerError("agnes", `图像生成失败: ${data.error.message}`, "UPSTREAM", true);
+        }
+        const item = data.data?.[0];
+        if (!item) {
+          console.error(`[image:agnes] 返回空结果 data=${JSON.stringify(data).slice(0, 200)} 耗时=${elapsed()}ms`);
+          throw providerError("agnes", "图像生成返回空结果", "UPSTREAM", true);
+        }
+        if (item.url) {
+          const category = opts.category ?? (count > 1 ? "characters" : "shots");
+          imagePaths.push(await downloadToStorage(item.url, category, ".png"));
+        } else if (item.b64_json) {
+          const { saveFile } = await import("@/lib/storage");
+          imagePaths.push(saveFile(opts.category ?? "shots", Buffer.from(item.b64_json, "base64"), ".png"));
+        }
+      }
+
+      console.log(`[image:agnes] 成功 model=${cfg.model} count=${imagePaths.length} 总耗时=${totalElapsed()}ms`);
+      return {
+        taskId: `agnes-img-${Date.now()}`,
         status: "done",
         result: { imagePaths },
       };
@@ -312,5 +435,6 @@ export async function createImageProvider(id?: string): Promise<ImageProvider> {
   const providerId = id ?? cfg.provider;
   if (providerId === COGVIEW_PROVIDER_ID) return createCogViewProvider();
   if (providerId === SEEDREAM_PROVIDER_ID) return createSeedreamProvider();
+  if (providerId === AGNES_PROVIDER_ID) return createAgnesImageProvider();
   return createMockImageProvider();
 }

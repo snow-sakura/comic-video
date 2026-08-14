@@ -48,3 +48,6 @@ next-env.d.ts
 # dev.sh 运行时日志
 .dev.log
 .worker.log
+
+# 本地工作区工具数据
+.workbuddy/

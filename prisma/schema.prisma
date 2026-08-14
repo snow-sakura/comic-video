@@ -51,6 +51,7 @@ enum TaskStatus {
   DONE
   FAILED
   REJECTED
+  PAUSED
 }
 
 enum ShotStatus {
@@ -80,6 +81,7 @@ model Project {
   novelPath String? // 上传小说文件路径
   novelText String? @db.Text // 解析后的纯文本
   novelMeta Json? // { chapters: [{index,title,start,end}] }
+  episodeCount Int        @default(6) // 分集大纲/剧本目标集数（AI 定制）
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
@@ -91,6 +93,7 @@ model Project {
   tasks      GenTask[]
 
   @@index([status])
+  @@index([updatedAt])
 }
 
 /// 剧本（含梗概与结构化内容，支持版本）
@@ -116,6 +119,7 @@ model Character {
   project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
   name         String
   role         String // 剧作功能: protagonist | supporting | antagonist | utility
+  gender       String? // 性别: male | female | unknown（由提炼阶段从剧情证据推断，供定妆照/TTS 匹配使用）
   appearance   Json // 外貌: { hair, costume, facialMarkers, body, style }
   personality  Json // 性格: { habits, emotionalReactions, speechStyle, psychology }
   costume      Json? // 场景化变装列表
@@ -159,6 +163,15 @@ model Asset {
   updatedAt DateTime  @updatedAt
 
   @@index([projectId, type])
+}
+
+/// 流水线全局控制（单行，id 恒为 1）
+/// paused=true：Worker 暂停消费新任务（重启后默认暂停，防止自动重跑历史任务）
+/// 用户点击「继续执行」后置为 false，Worker 恢复消费队列中等待的任务
+model PipelineControl {
+  id        Int      @id @default(1)
+  paused    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
 }
 
 /// 集
@@ -216,6 +229,24 @@ model ProviderSetting {
   updatedAt DateTime @updatedAt
 }
 
+/// 提示词模板（提示词工程可视化配置）
+/// scope=global：全局通用模板（设置页管理，覆盖所有小说）
+/// scope=project：项目级定制模板（项目页管理，仅适用该小说，优先于全局）
+/// 解析顺序：项目级覆盖 > 全局模板 > 代码内置默认
+model PromptTemplate {
+  id        String   @id @default(cuid())
+  key       String // 模板标识: extract | outline | script | storyboard | character | scene | prop | motion | prompt7
+  scope     String @default("global") // global | project
+  projectId String? // scope=project 时必填
+  name      String // 显示名
+  template  String @db.Text // 模板正文（含 {变量} 占位符）
+  enabled   Boolean @default(true) // 是否启用（禁用=回退到下一优先级）
+  updatedAt DateTime @updatedAt
+
+  @@unique([key, scope, projectId])
+  @@index([scope, projectId])
+}
+
 /// 所有AI任务统一追踪（含费用）
 model GenTask {
   id             String     @id @default(cuid())
@@ -237,4 +268,5 @@ model GenTask {
 
   @@index([status])
   @@index([projectId])
+  @@index([projectId, status])
 }

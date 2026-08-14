@@ -56,9 +56,11 @@ export const ModelName = {
   Character: 'Character',
   Scene: 'Scene',
   Asset: 'Asset',
+  PipelineControl: 'PipelineControl',
   Episode: 'Episode',
   Shot: 'Shot',
   ProviderSetting: 'ProviderSetting',
+  PromptTemplate: 'PromptTemplate',
   GenTask: 'GenTask'
 } as const
 
@@ -86,6 +88,7 @@ export const ProjectScalarFieldEnum = {
   novelPath: 'novelPath',
   novelText: 'novelText',
   novelMeta: 'novelMeta',
+  episodeCount: 'episodeCount',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -113,6 +116,7 @@ export const CharacterScalarFieldEnum = {
   projectId: 'projectId',
   name: 'name',
   role: 'role',
+  gender: 'gender',
   appearance: 'appearance',
   personality: 'personality',
   costume: 'costume',
@@ -155,6 +159,15 @@ export const AssetScalarFieldEnum = {
 } as const
 
 export type AssetScalarFieldEnum = (typeof AssetScalarFieldEnum)[keyof typeof AssetScalarFieldEnum]
+
+
+export const PipelineControlScalarFieldEnum = {
+  id: 'id',
+  paused: 'paused',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PipelineControlScalarFieldEnum = (typeof PipelineControlScalarFieldEnum)[keyof typeof PipelineControlScalarFieldEnum]
 
 
 export const EpisodeScalarFieldEnum = {
@@ -208,6 +221,20 @@ export const ProviderSettingScalarFieldEnum = {
 } as const
 
 export type ProviderSettingScalarFieldEnum = (typeof ProviderSettingScalarFieldEnum)[keyof typeof ProviderSettingScalarFieldEnum]
+
+
+export const PromptTemplateScalarFieldEnum = {
+  id: 'id',
+  key: 'key',
+  scope: 'scope',
+  projectId: 'projectId',
+  name: 'name',
+  template: 'template',
+  enabled: 'enabled',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PromptTemplateScalarFieldEnum = (typeof PromptTemplateScalarFieldEnum)[keyof typeof PromptTemplateScalarFieldEnum]
 
 
 export const GenTaskScalarFieldEnum = {

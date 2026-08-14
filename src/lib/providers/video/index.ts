@@ -8,6 +8,7 @@
  */
 import { createHmac } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import type {
   TaskHandle,
   VideoGenerateOptions,
@@ -20,6 +21,7 @@ import { absPath, downloadToStorage, saveFile, fileExists } from "@/lib/storage"
 export const COGVIDEOX_PROVIDER_ID = "cogvideox";
 export const KLING_PROVIDER_ID = "kling";
 export const VIDU_PROVIDER_ID = "vidu";
+export const AGNES_PROVIDER_ID = "agnes";
 
 // ========== 智谱 CogVideoX ==========
 
@@ -363,6 +365,208 @@ export function createKlingProvider(): VideoProvider {
   };
 }
 
+// ========== Agnes AI（agnes-video-v2.0，异步任务） ==========
+
+/** Agnes 视频限流：每分钟最多 1 个任务（实测 429 rate_limit_exceeded） */
+const AGNES_RATE_LIMIT_MS = 60_000;
+/** 上一次成功提交时间戳（进程级全局，保证跨队列并发仍串行） */
+let agnesLastSubmitAt = 0;
+
+function agnesResizeImage(inputAbs: string, targetMaxPx: number): Buffer {
+  const src = readFileSync(inputAbs);
+  // 已有 ffmpeg 的话用 scale 压缩，避免超大图被上游拒绝
+  try {
+    const out = execFileSync(
+      "ffmpeg",
+      [
+        "-y", "-i", inputAbs,
+        "-vf", `scale='min(iw,${targetMaxPx})':'min(ih,${targetMaxPx})':force_original_aspect_ratio=decrease`,
+        "-f", "image2pipe", "-c:v", "png", "-v", "error", "pipe:1",
+      ],
+      { stdio: ["ignore", "pipe", "ignore"], timeout: 30_000 }
+    );
+    if (out.length > 0) return out;
+  } catch {
+    // ffmpeg 不可用则原样发送
+  }
+  return src;
+}
+
+function agnesVideoSize(aspect?: string): string {
+  switch (aspect) {
+    case "9:16": return "768x1024";
+    case "3:4": return "768x1024";
+    case "4:3": return "1024x768";
+    case "16:9":
+    default: return "1024x768";
+  }
+}
+
+export function createAgnesVideoProvider(): VideoProvider {
+  return {
+    id: AGNES_PROVIDER_ID,
+    displayName: "Agnes Video 2.0",
+    async submit(opts: VideoGenerateOptions): Promise<TaskHandle> {
+      const cfg = await getVideoConfig();
+      const duration = Math.min(10, Math.max(5, opts.duration ?? 5));
+      const size = agnesVideoSize(opts.aspectRatio);
+      console.log(`[video:agnes] 提交 model=${cfg.model} baseUrl=${cfg.baseUrl} key=${maskKey(cfg.apiKey)} size=${size} duration=${duration} image="${opts.imagePath}" prompt="${(opts.prompt ?? "").slice(0, 60)}..."`);
+      const elapsed = startTimer();
+      if (!cfg.apiKey) {
+        console.error(`[video:agnes] 鉴权失败：VIDEO_API_KEY 未配置 耗时=${elapsed()}ms`);
+        throw providerError("agnes", "未配置 VIDEO_API_KEY（Agnes AI）", "UNAUTHORIZED", false);
+      }
+
+      // 限流：距上次提交不足 60s 则等待（Agnes 每分钟最多 1 个任务）
+      const wait = AGNES_RATE_LIMIT_MS - (Date.now() - agnesLastSubmitAt);
+      if (wait > 0) {
+        console.log(`[video:agnes] 限流等待 ${Math.ceil(wait / 1000)}s（每分钟 1 个任务）`);
+        await new Promise((r) => setTimeout(r, wait));
+      }
+
+      // 分镜图：本地文件 → PNG/JPEG Data URI（Agnes 支持 URL 或 data:base64）
+      let image: string | undefined;
+      if (opts.imagePath && fileExists(opts.imagePath)) {
+        const imgAbs = absPath(opts.imagePath);
+        const buf = agnesResizeImage(imgAbs, 1024);
+        const mime = opts.imagePath.endsWith(".jpg") || opts.imagePath.endsWith(".jpeg") ? "image/jpeg" : "image/png";
+        image = `data:${mime};base64,${buf.toString("base64")}`;
+      }
+
+      const body: Record<string, unknown> = {
+        model: cfg.model,
+        prompt: (opts.prompt ?? "").slice(0, 512),
+        duration,
+        size,
+      };
+      if (image) body.image = image;
+
+      const url = `${cfg.baseUrl}/videos`;
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${cfg.apiKey}`,
+          },
+          body: JSON.stringify(body),
+        });
+        agnesLastSubmitAt = Date.now();
+      } catch (e) {
+        console.error(`[video:agnes] 提交网络错误 url=${url} model=${cfg.model} 耗时=${elapsed()}ms error=${e instanceof Error ? e.message : String(e)}`);
+        throw providerError("agnes", `Agnes 提交网络错误: ${e instanceof Error ? e.message : String(e)}`, "UPSTREAM", true);
+      }
+      const json = (await res.json().catch(() => ({}))) as {
+        task_id?: string;
+        video_id?: string;
+        id?: string;
+        status?: string;
+        error?: { message?: string; code?: string };
+        message?: string;
+      };
+      if (!res.ok) {
+        console.error(`[video:agnes] 提交失败 status=${res.status} url=${url} model=${cfg.model} 耗时=${elapsed()}ms body=${JSON.stringify(json).slice(0, 300)}`);
+        // 限流则提示等待时间
+        if (res.status === 429) {
+          throw providerError("agnes", "Agnes 视频限流：每分钟最多提交 1 个任务，请稍后再试", "RATE_LIMITED", false);
+        }
+        throw providerError(
+          "agnes",
+          `Agnes 提交失败: ${json.error?.message ?? json.message ?? res.statusText}`,
+          res.status === 401 ? "UNAUTHORIZED" : "UPSTREAM",
+          res.status >= 500
+        );
+      }
+      const taskId = json.task_id ?? json.video_id ?? json.id;
+      if (!taskId) {
+        console.error(`[video:agnes] 未返回任务 id resp=${JSON.stringify(json).slice(0, 200)} 耗时=${elapsed()}ms`);
+        throw providerError("agnes", "Agnes 未返回任务 id", "UPSTREAM", true);
+      }
+      console.log(`[video:agnes] 提交成功 providerTaskId=${taskId} status=${json.status ?? "queued"} 耗时=${elapsed()}ms`);
+      return {
+        taskId: `agnes-${Date.now()}`,
+        providerTaskId: taskId,
+        status: "queued",
+      };
+    },
+
+    async getTask(providerTaskId: string): Promise<TaskHandle<{ videoPath: string }>> {
+      const cfg = await getVideoConfig();
+      const elapsed = startTimer();
+      if (!cfg.apiKey) {
+        console.error(`[video:agnes] 鉴权失败：VIDEO_API_KEY 未配置 耗时=${elapsed()}ms`);
+        throw providerError("agnes", "未配置 VIDEO_API_KEY（Agnes AI）", "UNAUTHORIZED", false);
+      }
+      if (!cfg.baseUrl) {
+        console.error(`[video:agnes] 配置错误：VIDEO_BASE_URL 未配置 耗时=${elapsed()}ms`);
+        throw providerError("agnes", "未配置 VIDEO_BASE_URL（Agnes AI）", "CONFIG_ERROR", false);
+      }
+
+      // 轮询端点与提交端点不同：{origin}/agnesapi?video_id=<id>
+      const origin = new URL(cfg.baseUrl).origin;
+      const url = `${origin}/agnesapi?video_id=${encodeURIComponent(providerTaskId)}`;
+      let res: Response;
+      try {
+        res = await fetch(url, {
+          headers: { Authorization: `Bearer ${cfg.apiKey}` },
+        });
+      } catch (e) {
+        console.error(`[video:agnes] 轮询网络错误 url=${url} id=${providerTaskId} 耗时=${elapsed()}ms error=${e instanceof Error ? e.message : String(e)}`);
+        return {
+          taskId: `agnes-${Date.now()}`,
+          providerTaskId,
+          status: "failed",
+          error: `轮询网络错误: ${e instanceof Error ? e.message : String(e)}`,
+        };
+      }
+      const json = (await res.json().catch(() => ({}))) as {
+        status?: string;
+        progress?: string | number;
+        url?: string;
+        error?: { message?: string; code?: string };
+        message?: string;
+      };
+      if (!res.ok) {
+        console.error(`[video:agnes] 轮询失败 status=${res.status} id=${providerTaskId} 耗时=${elapsed()}ms body=${JSON.stringify(json).slice(0, 200)}`);
+        return {
+          taskId: `agnes-${Date.now()}`,
+          providerTaskId,
+          status: "failed",
+          error: json.error?.message ?? json.message ?? `查询失败（${res.status}）`,
+        };
+      }
+      const status = (json.status ?? "").toLowerCase();
+      const progress = json.progress ?? "";
+      console.log(`[video:agnes] 轮询 id=${providerTaskId} status=${status} progress=${progress} 耗时=${elapsed()}ms`);
+
+      // 完成：status 含 success/done/completed，或已返回视频 url
+      if (/success|done|completed|succeeded/.test(status) || (json.url && status !== "failed" && status !== "error")) {
+        const vurl = json.url;
+        if (!vurl) {
+          console.error(`[video:agnes] 成功但无视频 url resp=${JSON.stringify(json).slice(0, 200)} 耗时=${elapsed()}ms`);
+          return { taskId: providerTaskId, providerTaskId, status: "failed", error: "无视频结果" };
+        }
+        const videoPath = await downloadToStorage(vurl, "videos", ".mp4");
+        console.log(`[video:agnes] 完成 id=${providerTaskId} video=${videoPath} 耗时=${elapsed()}ms`);
+        return { taskId: providerTaskId, providerTaskId, status: "done", result: { videoPath } };
+      }
+      // 失败
+      if (/fail|error|reject|cancel/.test(status)) {
+        console.error(`[video:agnes] 生成失败 id=${providerTaskId} resp=${JSON.stringify(json).slice(0, 200)} 耗时=${elapsed()}ms`);
+        return {
+          taskId: providerTaskId,
+          providerTaskId,
+          status: "failed",
+          error: json.error?.message ?? json.message ?? `Agnes 生成失败（${status}）`,
+        };
+      }
+      // 排队/生成中
+      return { taskId: providerTaskId, providerTaskId, status: "processing" };
+    },
+  };
+}
+
 // ========== Mock ==========
 
 export function createMockVideoProvider(): VideoProvider {
@@ -415,6 +619,7 @@ export async function createVideoProvider(id?: string): Promise<VideoProvider> {
   const providerId = id ?? cfg.provider;
   if (providerId === COGVIDEOX_PROVIDER_ID) return createCogVideoXProvider();
   if (providerId === KLING_PROVIDER_ID) return createKlingProvider();
+  if (providerId === AGNES_PROVIDER_ID) return createAgnesVideoProvider();
   if (providerId === VIDU_PROVIDER_ID) {
     // Vidu 适配器占位（文档确认后实现；当前回退 Mock 并提示）
     return createMockVideoProvider();

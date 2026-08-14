@@ -7,9 +7,29 @@
  * PATCH { shotId, status } — 标记 REJECTED（重新生成）/ 重置
  */
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { enqueueGenTask } from "@/lib/queue/queues";
 import { assembleAllShotPrompts } from "@/lib/storyboard";
+
+const storyboardSchema = z.object({
+  stage: z.enum(["storyboard", "images", "manual"]),
+  episodeNumber: z.number().int().min(1),
+  shotId: z.string().optional(),
+  shots: z.array(z.object({
+    sceneName: z.string().optional(),
+    action: z.string().optional(),
+    dialog: z.string().optional(),
+    dialogChar: z.string().optional(),
+    dialogEmotion: z.string().optional(),
+    duration: z.number().min(0.5).max(60).optional(),
+  })).optional(),
+});
+
+const shotPatchSchema = z.object({
+  shotId: z.string().min(1),
+  status: z.enum(["REJECTED"]),
+});
 
 // ========== POST ==========
 
@@ -19,14 +39,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const project = await prisma.project.findUnique({ where: { id } });
     if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
 
-    const body = await req.json().catch(() => ({}));
-    const stage = body?.stage as string | undefined;
-    const episodeNumber = Number(body?.episodeNumber);
-    const shotId = body?.shotId ? String(body.shotId) : undefined;
-
-    if (!Number.isInteger(episodeNumber) || episodeNumber <= 0) {
-      return NextResponse.json({ error: "episodeNumber 无效" }, { status: 400 });
+    const raw = await req.json().catch(() => ({}));
+    const parsed = storyboardSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "输入校验失败", details: parsed.error.flatten() }, { status: 400 });
     }
+    const { stage, episodeNumber, shotId, shots } = parsed.data;
+    const body = raw;
     const episode = await prisma.episode.findUnique({
       where: { projectId_number: { projectId: id, number: episodeNumber } },
     });
@@ -34,7 +53,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     if (stage === "manual") {
       // P1-4 手动分镜：手动创建镜头（复用同一套提示词/参考图组装）
-      const items = Array.isArray(body?.shots) ? (body.shots as Record<string, unknown>[]) : [];
+      const items = shots ?? [];
       if (items.length === 0) return NextResponse.json({ error: "shots 不能为空" }, { status: 400 });
       const maxSeq = await prisma.shot.aggregate({
         where: { episodeId: episode.id },
@@ -201,21 +220,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const body = await req.json().catch(() => ({}));
-  const shotId = body?.shotId ? String(body.shotId) : undefined;
-  if (!shotId) return NextResponse.json({ error: "缺少 shotId" }, { status: 400 });
+  const raw = await req.json().catch(() => ({}));
+  const parsed = shotPatchSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "输入校验失败", details: parsed.error.flatten() }, { status: 400 });
+  }
+  const { shotId, status } = parsed.data;
 
   const shot = await prisma.shot.findFirst({ where: { id: shotId, episode: { projectId: id } } });
   if (!shot) return NextResponse.json({ error: "镜头不存在" }, { status: 404 });
 
-  if (body?.status === "REJECTED") {
+  if (status === "REJECTED") {
     await prisma.shot.update({ where: { id: shotId }, data: { status: "REJECTED", error: null } });
     return NextResponse.json({ ok: true });
   }
-  if (body?.status === "PENDING") {
-    // 重置：清空图，供重新出图
-    await prisma.shot.update({ where: { id: shotId }, data: { status: "PROMPT_READY", imagePath: null, error: null } });
-    return NextResponse.json({ ok: true });
-  }
-  return NextResponse.json({ error: "status 必须是 REJECTED | PENDING" }, { status: 400 });
+
+  return NextResponse.json({ error: "status 必须是 REJECTED" }, { status: 400 });
 }

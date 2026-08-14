@@ -83,6 +83,7 @@ export function chaptersDigest(meta: NovelMeta, text: string, perChapter = 800, 
 export interface HeuristicCharacter {
   name: string;
   role: "protagonist" | "supporting" | "antagonist" | "utility";
+  gender: "male" | "female" | "unknown";
   appearance: Record<string, string>;
   personality: Record<string, string>;
   mentions: number;
@@ -120,13 +121,29 @@ export function heuristicCharacters(text: string): HeuristicCharacter[] {
       }
     }
   }
+  // 过滤明显非人物：第二字为组织集合词（"家/门/派/帮/族/殿/阁/队"）时，
+  // 大概率是"唐家""唐门""唐家门"这类组织名而非人名（避免把家族/门派当角色）。
+  const GROUP_SUFFIX = /^[家门派帮族殿阁队部处司]$/;
+  // 常见双字名词黑名单：首字恰为姓氏（任/方/程/石/焦等）时极易被误判为人名
+  const NON_NAME_WORDS = new Set([
+    "任务", "方式", "方法", "意思", "关系", "问题", "时候", "地方", "事情", "东西", "结果", "情况",
+    "条件", "能力", "机会", "过程", "内容", "要求", "规定", "责任", "态度", "状态", "信息", "数据",
+    "文件", "知识", "技术", "方案", "意见", "建议", "模式", "系统", "平台", "产品", "服务", "功能",
+    "接口", "组件", "样式", "框架", "版本", "配置", "参数", "异常", "错误", "警告", "优化", "操作",
+    "时间", "地点", "人物", "事件", "世界", "社会", "国家", "城市", "学校", "公司", "医院", "市场",
+    "原因", "目的", "目标", "计划", "安排", "准备", "开始", "结束", "继续", "完成", "成功", "失败",
+    "明白", "知道", "觉得", "认为", "希望", "需要", "想要", "决定", "发现", "感觉", "想法", "心情",
+  ]);
   return [...counts.entries()]
     .filter(([, n]) => n >= 3) // 至少出现 3 次
+    .filter(([name]) => !(name.length === 2 && GROUP_SUFFIX.test(name[1])))
+    .filter(([name]) => !(name.length === 2 && NON_NAME_WORDS.has(name)))
     .sort((x, y) => y[1] - x[1])
     .slice(0, 12)
     .map(([name, mentions], i) => ({
       name,
       role: (i === 0 ? "protagonist" : i === 1 ? "supporting" : i <= 3 ? "antagonist" : "utility") as HeuristicCharacter["role"],
+      gender: "unknown" as HeuristicCharacter["gender"],
       appearance: {
         hair: "待定（建议：深色中长发）",
         costume: "待定（建议：现代日常服饰）",

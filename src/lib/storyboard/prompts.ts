@@ -2,7 +2,9 @@
  * 分镜车间 Prompt（M3）
  * 1) 分镜 Agent：把场景切分为镜头（LLM 结构化输出 + 回退）
  * 2) 7 维提示词：组装可复现的分镜出图提示词（引用锁定角色定妆照 / 场景空镜）
+ * 分镜 Agent 提示词已模板化：见 src/lib/prompts/registry.ts（项目覆盖 > 全局 > 内置默认）。
  */
+import { renderPrompt } from "@/lib/prompts/registry";
 
 export interface StoryboardScene {
   location: string;
@@ -25,45 +27,47 @@ export interface ShotSpec {
 export interface CharacterCard {
   name: string;
   role: string;
+  gender?: string | null;
   appearance: Record<string, string>;
 }
 
+const GENDER_CN: Record<string, string> = {
+  male: "男",
+  female: "女",
+  unknown: "性别未知",
+};
+
 /** 分镜 Agent prompt */
-export function buildStoryboardPrompt(scene: StoryboardScene, chars: CharacterCard[], index: number, total: number): string {
+export async function buildStoryboardPrompt(
+  scene: StoryboardScene,
+  chars: CharacterCard[],
+  index: number,
+  total: number,
+  projectId?: string | null
+): Promise<string> {
   const charLines = chars
-    .map((c) => `- ${c.name}（${c.role}）：发型「${c.appearance.hair ?? "待定"}」、服装「${c.appearance.costume ?? "待定"}」`)
+    .map(
+      (c) =>
+        `- ${c.name}（${c.role}${c.gender && GENDER_CN[c.gender] ? `·${GENDER_CN[c.gender]}` : ""}）：发型「${c.appearance.hair ?? "待定"}」、服装「${c.appearance.costume ?? "待定"}」、标志物「${c.appearance.facialMarkers ?? "待定"}」`
+    )
     .join("\n");
   const dialogLines = scene.dialogs
     .map((d) => `【${d.char}·${d.emotion}】${d.text}`)
     .join("\n");
-  return [
-    `请为剧本中的一个场景切分镜头（场景 ${index + 1}/${total}），只输出 JSON。`,
-    "",
-    `## 场景信息`,
-    `地点：${scene.location}｜时间：${scene.time}`,
-    `在场角色：${scene.characters.join("、") || "无"}`,
-    `画面动作：${scene.action}`,
-    scene.dialogs.length > 0 ? `台词：\n${dialogLines}` : "无台词",
-    "",
-    `## 角色外观参考`,
-    charLines || "（无角色）",
-    "",
-    `## 输出要求`,
-    `输出 {"shots": [...]}，每个镜头包含：`,
-    `- sceneName: 场景名`,
-    `- camera: { angle: 平视|俯视|仰视|斜角, movement: 固定|推近|拉远|横移|跟随|环绕, shotSize: 特写|近景|中景|全景|远景 }`,
-    `- action: 该镜头的画面动作描述（≤60字，包含人物动作与情绪细节）`,
-    `- dialog: 该镜头台词（若台词切分到多镜，按语义拆分；无则null）`,
-    `- dialogChar: 说话角色名（无则null）`,
-    `- dialogEmotion: 台词情绪（无则null）`,
-    `- duration: 镜头时长秒数（有台词按语速≈4字/秒，无台词3-5秒）`,
-    `要求：1-3 个镜头，按剧情节奏切分，不要遗漏关键动作与台词。`,
-    `镜头语言提示：`,
-    `- 情绪高点（告白/对峙/转折）优先特写或近景，强化面部微表情`,
-    `- 环境交代用全景/远景，动作推进用中景+推近`,
-    `- 悬念镜头用固定机位+缓慢推近，制造压迫感`,
-    `- 每镜 action 要写明角色做什么 + 情绪状态（如：她攥紧衣角，强装镇定）`,
-  ].join("\n");
+  return renderPrompt(
+    "storyboard",
+    {
+      index: String(index + 1),
+      total: String(total),
+      sceneLocation: scene.location,
+      sceneTime: scene.time,
+      sceneChars: scene.characters.join("、") || "无",
+      sceneAction: scene.action,
+      sceneDialogs: scene.dialogs.length > 0 ? `台词：\n${dialogLines}` : "无台词",
+      charLines: charLines || "（无角色）",
+    },
+    projectId
+  );
 }
 
 /** 分镜回退：每场景一个中景固定镜头 */

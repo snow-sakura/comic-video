@@ -67,6 +67,13 @@ export type Scene = Prisma.SceneModel
  */
 export type Asset = Prisma.AssetModel
 /**
+ * Model PipelineControl
+ * 流水线全局控制（单行，id 恒为 1）
+ * paused=true：Worker 暂停消费新任务（重启后默认暂停，防止自动重跑历史任务）
+ * 用户点击「继续执行」后置为 false，Worker 恢复消费队列中等待的任务
+ */
+export type PipelineControl = Prisma.PipelineControlModel
+/**
  * Model Episode
  * 集
  */
@@ -81,6 +88,14 @@ export type Shot = Prisma.ShotModel
  * 供应商配置（KV存储，设置页可写，优先于环境变量）
  */
 export type ProviderSetting = Prisma.ProviderSettingModel
+/**
+ * Model PromptTemplate
+ * 提示词模板（提示词工程可视化配置）
+ * scope=global：全局通用模板（设置页管理，覆盖所有小说）
+ * scope=project：项目级定制模板（项目页管理，仅适用该小说，优先于全局）
+ * 解析顺序：项目级覆盖 > 全局模板 > 代码内置默认
+ */
+export type PromptTemplate = Prisma.PromptTemplateModel
 /**
  * Model GenTask
  * 所有AI任务统一追踪（含费用）

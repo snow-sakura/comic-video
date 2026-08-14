@@ -75,12 +75,13 @@ export function estimateSubtitles(text: string, totalSec: number): TTSSubtitle[]
   });
 }
 
-/** ms → SRT 时间格式 00:00:00,000 */
+/** ms → SRT 时间格式 00:00:00,000（毫秒必须取整，libass 解析浮点毫秒会失败） */
 export function srtTime(ms: number): string {
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  const s = Math.floor((ms % 60000) / 1000);
-  const mm = ms % 1000;
+  const r = Math.round(ms);
+  const h = Math.floor(r / 3600000);
+  const m = Math.floor((r % 3600000) / 60000);
+  const s = Math.floor((r % 60000) / 1000);
+  const mm = r % 1000;
   const pad = (n: number, w = 2) => String(n).padStart(w, "0");
   return `${pad(h)}:${pad(m)}:${pad(s)},${pad(mm, 3)}`;
 }

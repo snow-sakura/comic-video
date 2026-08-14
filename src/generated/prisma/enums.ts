@@ -59,7 +59,8 @@ export const TaskStatus = {
   PROCESSING: 'PROCESSING',
   DONE: 'DONE',
   FAILED: 'FAILED',
-  REJECTED: 'REJECTED'
+  REJECTED: 'REJECTED',
+  PAUSED: 'PAUSED'
 } as const
 
 export type TaskStatus = (typeof TaskStatus)[keyof typeof TaskStatus]

@@ -53,9 +53,11 @@ export async function PATCH(
     (dialog !== undefined && dialog !== shot.dialog) ||
     (dialogChar !== undefined && dialogChar !== shot.dialogChar) ||
     (dialogEmotion !== undefined && dialogEmotion !== shot.dialogEmotion);
+  // 画面类字段变化（场景/动作/镜头语言）→ 作废已出图/视频等下游产物
   const visualChanged =
     (sceneName !== undefined && sceneName !== shot.sceneName) ||
-    (action !== undefined && action !== shot.action);
+    (action !== undefined && action !== shot.action) ||
+    (camera !== undefined && JSON.stringify(camera) !== JSON.stringify((shot.camera ?? {}) as Record<string, string>));
 
   const wasVoiced =
     Boolean(shot.voicePath) || Boolean(shot.subtitlePath) || shot.status.startsWith("VOICE");

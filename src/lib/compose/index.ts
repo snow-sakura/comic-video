@@ -17,14 +17,38 @@ import { getMusic } from "@/lib/providers/registry";
 import type { TTSSubtitle } from "@/lib/providers/types";
 import { cuesToSrt, cuesToVtt } from "@/lib/tts/subtitles";
 
-const execFileAsync = promisify(execFile);
+const _execFileAsync = promisify(execFile);
+/** ffmpeg 超时保护：5 分钟（300s）无输出则强制终止 */
+const FFMPEG_TIMEOUT = 300_000;
+const execFileAsync = (file: string, args: string[], options?: object) =>
+  _execFileAsync(file, args, { timeout: FFMPEG_TIMEOUT, ...options });
+
+/**
+ * ffmpeg 二进制选择：
+ * 1. FFMPEG_BIN 环境变量显式指定
+ * 2. ffmpeg-full（homebrew-ffmpeg tap，带 libass/freetype 全功能构建）
+ * 3. ffmpeg（系统默认，精简构建可能无 subtitles/drawtext 滤镜）
+ */
+let ffmpegBinCache: string | undefined;
+export function ffmpegBin(): string {
+  if (ffmpegBinCache !== undefined) return ffmpegBinCache;
+  ffmpegBinCache = process.env.FFMPEG_BIN ?? "ffmpeg";
+  return ffmpegBinCache;
+}
+
+let ffprobeBinCache: string | undefined;
+export function ffprobeBin(): string {
+  if (ffprobeBinCache !== undefined) return ffprobeBinCache;
+  ffprobeBinCache = process.env.FFPROBE_BIN ?? "ffprobe";
+  return ffprobeBinCache;
+}
 
 /** subtitles 滤镜可用性（ffmpeg 精简构建可能无 libass），首次探测后缓存 */
 let hasSubtitlesFilterCache: boolean | null = null;
 async function hasSubtitlesFilter(): Promise<boolean> {
   if (hasSubtitlesFilterCache !== null) return hasSubtitlesFilterCache;
   try {
-    const { stdout } = await execFileAsync("ffmpeg", ["-hide_banner", "-filters"]);
+    const { stdout } = await execFileAsync(ffmpegBin(), ["-hide_banner", "-filters"]);
     hasSubtitlesFilterCache = stdout.split("\n").some((l) => /subtitles|ass\s/.test(l));
   } catch {
     hasSubtitlesFilterCache = false;
@@ -32,9 +56,152 @@ async function hasSubtitlesFilter(): Promise<boolean> {
   return hasSubtitlesFilterCache;
 }
 
+// ========== drawtext 字幕烧录（无 libass 时的兜底方案，逐句绘制） ==========
+
+/** drawtext 滤镜可用性，首次探测后缓存 */
+let hasDrawtextFilterCache: boolean | null = null;
+async function hasDrawtextFilter(): Promise<boolean> {
+  if (hasDrawtextFilterCache !== null) return hasDrawtextFilterCache;
+  try {
+    const { stdout } = await execFileAsync(ffmpegBin(), ["-hide_banner", "-filters"]);
+    hasDrawtextFilterCache = stdout.split("\n").some((l) => /drawtext\s/.test(l));
+  } catch {
+    hasDrawtextFilterCache = false;
+  }
+  return hasDrawtextFilterCache;
+}
+
+/** 中文字体探测：依次尝试常见字体文件，首个存在者返回 */
+const CJK_FONT_CANDIDATES = [
+  "/System/Library/Fonts/STHeiti Light.ttc",
+  "/System/Library/Fonts/Hiragino Sans GB.ttc",
+  "/System/Library/Fonts/PingFang.ttc",
+  "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
+  "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+  "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+];
+
+let cjkFontCache: string | null | undefined;
+async function detectCjkFont(): Promise<string | null> {
+  if (cjkFontCache !== undefined) return cjkFontCache;
+  for (const p of CJK_FONT_CANDIDATES) {
+    try {
+      await import("node:fs").then((fs) => fs.promises.access(p));
+      cjkFontCache = p;
+      return p;
+    } catch {
+      // 尝试下一个
+    }
+  }
+  cjkFontCache = null;
+  return null;
+}
+
+/** 候选 CJK 字体族名（key 与 CJK_FONT_CANDIDATES 对齐，fc-match 失败时回退） */
+const CJK_FONT_NAME_BY_FILE: Record<string, string> = {
+  "/System/Library/Fonts/STHeiti Light.ttc": "Heiti SC",
+  "/System/Library/Fonts/Hiragino Sans GB.ttc": "Hiragino Sans GB",
+  "/System/Library/Fonts/PingFang.ttc": "PingFang SC",
+  "/System/Library/Fonts/Supplemental/Arial Unicode.ttf": "Arial Unicode MS",
+  "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc": "Noto Sans CJK SC",
+  "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc": "WenQuanYi Micro Hei",
+};
+
+let cjkFontNameCache: string | null | undefined;
+
+/**
+ * libass (subtitles 滤镜) 可用的 CJK 字体族名。
+ * 注意：FontName 必须是 fontconfig 实际可解析的族名（如 "Heiti SC"），
+ * 写死 "PingFang SC" 在无该字体的机器上会静默渲染空白。
+ */
+async function detectCjkFontName(): Promise<string | null> {
+  if (cjkFontNameCache !== undefined) return cjkFontNameCache;
+  try {
+    const { stdout } = await execFileAsync("fc-match", ["-f", "%{family}", "sans-serif:lang=zh"]);
+    const name = String(stdout).trim().split(",")[0]?.trim();
+    if (name) {
+      cjkFontNameCache = name;
+      return name;
+    }
+  } catch {
+    // fc-match 不可用，走候选表回退
+  }
+  const file = await detectCjkFont();
+  cjkFontNameCache = (file && CJK_FONT_NAME_BY_FILE[file]) || null;
+  return cjkFontNameCache;
+}
+
+/** drawtext 文本转义：过滤特殊字符，避免破坏滤镜语法 */
+function drawtextEscape(text: string): string {
+  return text
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "’")
+    .replace(/:/g, "\\:")
+    .replace(/,/g, "\\,")
+    .replace(/;/g, "\\;")
+    .replace(/%/g, "\\%")
+    .replace(/\n/g, " ");
+}
+
+/** 按中文宽度断行：每行 maxChars 字（按全角字符估算），返回插入 \n 的文本 */
+function wrapText(text: string, maxChars = 16): string {
+  const out: string[] = [];
+  let line = "";
+  let count = 0;
+  for (const ch of text) {
+    const w = /[\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]/.test(ch) ? 1 : 0.5;
+    if (count + w > maxChars && line) {
+      out.push(line);
+      line = ch;
+      count = w;
+    } else {
+      line += ch;
+      count += w;
+    }
+  }
+  if (line) out.push(line);
+  return out.join("\n");
+}
+
+/** 用 drawtext 滤镜链把字幕烧录进成片（输出到 subPath），失败返回 false */
+async function burnWithDrawtext(finalPath: string, mergedCues: TTSSubtitle[], subPath: string): Promise<boolean> {
+  const fontFile = await detectCjkFont();
+  if (!fontFile) return false;
+  // 1080p 基准 22px；视频高度 <700 时缩小到 18px
+  const fontsize = 22;
+  try {
+    const filters = mergedCues.map((c) => {
+      const t = drawtextEscape(wrapText(c.text));
+      const start = Math.max(0, c.start / 1000);
+      const dur = Math.max(0.4, (c.end - c.start) / 1000);
+      return (
+        `drawtext=fontfile=${fontFile}:` +
+        `text='${t}':` +
+        `x=(w-text_w)/2:y=h-64:` +
+        `fontsize=${fontsize}:fontcolor=white:` +
+        `borderw=2:bordercolor=black@0.75:` +
+        `line_spacing=6:` +
+        `enable='between(t,${start.toFixed(2)},${(start + dur).toFixed(2)})'`
+      );
+    });
+    await execFileAsync(ffmpegBin(), [
+      "-y",
+      "-i", finalPath,
+      "-vf", filters.join(","),
+      "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+      "-c:a", "copy",
+      subPath,
+    ]);
+    await execFileAsync(ffmpegBin(), ["-y", "-i", subPath, "-c", "copy", finalPath]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** 按相对路径读取媒体文件时长（ffprobe，秒） */
 async function probeDuration(relPath: string): Promise<number> {
-  const { stdout } = await execFileAsync("ffprobe", [
+  const { stdout } = await execFileAsync(ffprobeBin(), [
     "-v", "error",
     "-show_entries", "format=duration",
     "-of", "default=noprint_wrappers=1:nokey=1",
@@ -45,14 +212,9 @@ async function probeDuration(relPath: string): Promise<number> {
   return n;
 }
 
-/** ffmpeg filter 内路径转义（冒号/反斜杠/单引号） */
-function escapeFilterPath(p: string): string {
-  return p.replace(/\\/g, "\\\\").replace(/:/g, "\\:").replace(/'/g, "\\'");
-}
-
 /** 读取视频主分辨率（不存在时抛错） */
 async function probeVideoSize(relPath: string): Promise<{ w: number; h: number }> {
-  const { stdout } = await execFileAsync("ffprobe", [
+  const { stdout } = await execFileAsync(ffprobeBin(), [
     "-v", "error", "-select_streams", "v:0",
     "-show_entries", "stream=width,height",
     "-of", "csv=p=0",
@@ -66,7 +228,7 @@ async function probeVideoSize(relPath: string): Promise<{ w: number; h: number }
 /** 检查媒体是否有音频流 */
 async function hasAudioStream(relPath: string): Promise<boolean> {
   try {
-    const { stdout } = await execFileAsync("ffprobe", [
+    const { stdout } = await execFileAsync(ffprobeBin(), [
       "-v", "error", "-select_streams", "a",
       "-show_entries", "stream=codec_type",
       "-of", "default=noprint_wrappers=1:nokey=1",
@@ -140,9 +302,12 @@ async function composeWithTransitions(
   }
 
   const videoOut = n === 1 ? "vout" : "vfinal";
-  parts.push(`${audioRefs.join("")}concat=n=${n}:v=0:a=1[afinal]`);
+  // 音频 concat 全长会超过视频（xfade 有叠化损耗），atrim 对齐到 outDur 避免尾部静音
+  parts.push(
+    `${audioRefs.join("")}concat=n=${n}:v=0:a=1,atrim=0:${outDur.toFixed(3)},asetpts=PTS-STARTPTS[afinal]`
+  );
 
-  await execFileAsync("ffmpeg", [
+  await execFileAsync(ffmpegBin(), [
     "-y",
     ...inputs,
     "-filter_complex", parts.join(";"),
@@ -188,20 +353,51 @@ export async function composeEpisode(
 
       if (shot.voicePath) {
         const voice = absPath(shot.voicePath);
-        await execFileAsync("ffmpeg", [
-          "-y",
-          "-i", video,
-          "-i", voice,
-          "-map", "0:v:0",
-          "-map", "1:a:0",
-          "-c:v", "copy",
-          "-c:a", "aac", "-b:a", "192k",
-          "-shortest",
-          clipPath,
-        ]);
+        // 探测两端时长：配音长于视频时用 tpad 补帧延长画面（否则 -shortest 会截断视频丢画面）
+        let needPad = false;
+        let padDiff = 0;
+        try {
+          const [videoDur, voiceDur] = await Promise.all([
+            probeDuration(shot.videoPath!),
+            probeDuration(shot.voicePath!),
+          ]);
+          padDiff = voiceDur - videoDur;
+          needPad = padDiff > 0.2;
+        } catch {
+          // 探测失败走原逻辑（apad + -shortest）
+        }
+        if (needPad) {
+          await execFileAsync(ffmpegBin(), [
+            "-y",
+            "-i", video,
+            "-i", voice,
+            "-filter_complex",
+            `[0:v]tpad=stop_mode=clone:stop_duration=${padDiff.toFixed(3)}[v];[1:a]apad[a]`,
+            "-map", "[v]",
+            "-map", "[a]",
+            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "192k",
+            "-shortest",
+            clipPath,
+          ]);
+        } else {
+          // 配音短于视频时用 apad 补静音，保证画面完整（-shortest 会截断视频丢帧）
+          await execFileAsync(ffmpegBin(), [
+            "-y",
+            "-i", video,
+            "-i", voice,
+            "-filter_complex", "[1:a]apad[a]",
+            "-map", "0:v:0",
+            "-map", "[a]",
+            "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "192k",
+            "-shortest",
+            clipPath,
+          ]);
+        }
       } else {
         // 无配音：保留视频原音轨（若有），否则静音
-        await execFileAsync("ffmpeg", ["-y", "-i", video, "-c", "copy", clipPath]);
+        await execFileAsync(ffmpegBin(), ["-y", "-i", video, "-c", "copy", clipPath]);
       }
       clips.push(clipRel);
       clipDurations.push(await probeDuration(clipRel));
@@ -214,7 +410,8 @@ export async function composeEpisode(
 
     try {
       await composeWithTransitions(clips, clipDurations, finalPath);
-    } catch {
+    } catch (e) {
+      console.error(`[compose] 转场链失败，降级 concat: ${e instanceof Error ? e.message : String(e)}`);
       const listPath = join(
         (await import("node:os")).tmpdir(),
         `concat-${episode.id}-${Date.now()}.txt`
@@ -226,7 +423,7 @@ export async function composeEpisode(
         "utf8"
       );
       try {
-        await execFileAsync("ffmpeg", [
+        await execFileAsync(ffmpegBin(), [
           "-y", "-f", "concat", "-safe", "0",
           "-i", listPath,
           "-c", "copy",
@@ -234,7 +431,7 @@ export async function composeEpisode(
         ]);
       } catch {
         // 规格不一致（真实可灵片段）→ 重编码保证可拼接
-        await execFileAsync("ffmpeg", [
+        await execFileAsync(ffmpegBin(), [
           "-y", "-f", "concat", "-safe", "0",
           "-i", listPath,
           "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
@@ -255,7 +452,7 @@ export async function composeEpisode(
           const bgmPath = absPath(handle.result.audioPath);
           const { path: mixedPath } = uniqueName("videos", ".mp4");
           tmpFiles.push(mixedPath);
-          await execFileAsync("ffmpeg", [
+          await execFileAsync(ffmpegBin(), [
             "-y",
             "-i", finalPath,
             "-stream_loop", "-1",
@@ -269,7 +466,7 @@ export async function composeEpisode(
             "-shortest",
             mixedPath,
           ]);
-          await execFileAsync("ffmpeg", ["-y", "-i", mixedPath, "-c", "copy", finalPath]);
+          await execFileAsync(ffmpegBin(), ["-y", "-i", mixedPath, "-c", "copy", finalPath]);
         }
       } catch {
         // BGM 不可用不阻断成片
@@ -285,7 +482,8 @@ export async function composeEpisode(
         try {
           const cues = JSON.parse(shot.subtitlePath) as TTSSubtitle[];
           if (Array.isArray(cues) && cues.length) {
-            const base = offset * 1000;
+            // xfade 链实际时间轴：第 i 段 (i>0) 起始比 concat 累计提前 i×XFADE_DUR
+            const base = (offset - (i > 0 ? i * XFADE_DUR : 0)) * 1000;
             for (const c of cues) {
               mergedCues.push({ start: c.start + base, end: c.end + base, text: c.text });
             }
@@ -303,27 +501,35 @@ export async function composeEpisode(
       subtitleRel = finalRel.replace(/\.mp4$/, ".srt");
       await writeFile(absPath(subtitleRel), srtContent, "utf8");
       await writeFile(absPath(subtitleRel.replace(/\.srt$/, ".vtt")), vttContent, "utf8");
-      // 烧录（需 ffmpeg 带 libass；精简构建自动跳过，播放器走 WebVTT 软字幕）
+      // 烧录：优先 libass subtitles 滤镜；无 libass 时用 drawtext 逐句绘制兜底；都失败则保留 SRT/VTT 软字幕
       if (await hasSubtitlesFilter()) {
-        try {
-          const { path: subPath } = uniqueName("videos", ".mp4");
-          tmpFiles.push(subPath);
-          const vf = [
-            `subtitles='${escapeFilterPath(absPath(subtitleRel))}'`,
-            `force_style='FontName=PingFang SC,FontSize=18,MarginV=30,Outline=1,OutlineColour=&H80000000,PrimaryColour=&H00FFFFFF,BorderStyle=1,Alignment=2'`,
-          ].join(":");
-          await execFileAsync("ffmpeg", [
-            "-y",
-            "-i", finalPath,
-            "-vf", vf,
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
-            "-c:a", "copy",
-            subPath,
-          ]);
-          await execFileAsync("ffmpeg", ["-y", "-i", subPath, "-c", "copy", finalPath]);
-        } catch {
-          // 烧录失败（缺字体等）不阻断成片，SRT/VTT 文件保留
+        const fontName = await detectCjkFontName();
+        if (fontName) {
+          try {
+            const { path: subPath } = uniqueName("videos", ".mp4");
+            tmpFiles.push(subPath);
+            const subAbs = absPath(subtitleRel);
+            const vf = [
+              `subtitles=${subAbs}`,
+              `force_style='FontName=${fontName},FontSize=18,MarginV=30,Outline=1,OutlineColour=&H80000000,PrimaryColour=&H00FFFFFF,BorderStyle=1,Alignment=2'`,
+            ].join(":");
+            await execFileAsync(ffmpegBin(), [
+              "-y",
+              "-i", finalPath,
+              "-vf", vf,
+              "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+              "-c:a", "copy",
+              subPath,
+            ]);
+            await execFileAsync(ffmpegBin(), ["-y", "-i", subPath, "-c", "copy", finalPath]);
+          } catch {
+            // 烧录失败（缺字体等）不阻断成片，SRT/VTT 文件保留
+          }
         }
+      } else if (await hasDrawtextFilter()) {
+        const { path: subPath } = uniqueName("videos", ".mp4");
+        tmpFiles.push(subPath);
+        await burnWithDrawtext(finalPath, mergedCues, subPath);
       }
     }
 

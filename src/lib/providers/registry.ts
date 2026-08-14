@@ -18,10 +18,10 @@ import type {
   VideoProvider,
 } from "@/lib/providers/types";
 import { getTextConfig, getImageConfig, getVideoConfig, getTTSConfig, shouldUseMock } from "@/lib/providers/settings";
-import { createDeepSeekProvider, createDoubaoProvider, createGlmProvider, createMockLLMProvider } from "@/lib/providers/llm";
-import { createCogViewProvider, createMockImageProvider, createSeedreamProvider } from "@/lib/providers/image";
-import { createCogVideoXProvider, createKlingProvider, createMockVideoProvider } from "@/lib/providers/video";
-import { createEdgeTTSProvider, createCosyVoiceProvider, createMockTTSProvider } from "@/lib/providers/tts";
+import { createDeepSeekProvider, createDoubaoProvider, createGlmProvider, createMockLLMProvider, createOpenAICompatProvider } from "@/lib/providers/llm";
+import { createCogViewProvider, createMockImageProvider, createSeedreamProvider, createAgnesImageProvider } from "@/lib/providers/image";
+import { createCogVideoXProvider, createKlingProvider, createMockVideoProvider, createAgnesVideoProvider } from "@/lib/providers/video";
+import { createEdgeTTSProvider, createCosyVoiceProvider, createConfucius4Provider, createMockTTSProvider } from "@/lib/providers/tts";
 import { createMusicProvider } from "@/lib/providers/music";
 import { createSfxProvider } from "@/lib/providers/sfx";
 
@@ -52,6 +52,7 @@ export async function getTextLLM(): Promise<LLMProvider> {
       case "glm": return createGlmProvider();
       case "deepseek": return createDeepSeekProvider();
       case "doubao": return createDoubaoProvider();
+      case "openai": return createOpenAICompatProvider();
       default: return createMockLLMProvider();
     }
   });
@@ -77,6 +78,7 @@ export async function getImage(): Promise<ImageProvider> {
     switch (cfg.provider) {
       case "cogview": return createCogViewProvider();
       case "seedream": return createSeedreamProvider();
+      case "agnes": return createAgnesImageProvider();
       default: return createMockImageProvider();
     }
   });
@@ -92,6 +94,7 @@ export async function getVideo(): Promise<VideoProvider> {
     switch (cfg.provider) {
       case "cogvideox": return createCogVideoXProvider();
       case "kling": return createKlingProvider();
+      case "agnes": return createAgnesVideoProvider();
       default: return createMockVideoProvider();
     }
   });
@@ -107,6 +110,7 @@ export async function getTTS(): Promise<TTSProvider> {
     switch (cfg.engine) {
       case "edge-tts": return createEdgeTTSProvider();
       case "cosyvoice": return createCosyVoiceProvider();
+      case "confucius4": return createConfucius4Provider();
       default: return createMockTTSProvider();
     }
   });

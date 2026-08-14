@@ -7,9 +7,18 @@
  * GET — 集列表 + 镜头（video/voice/成片状态）+ 运行中任务
  */
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { prisma } from "@/lib/db";
 import { enqueueGenTask } from "@/lib/queue/queues";
 import { buildMotionPrompt } from "@/lib/compose/prompts";
+import { getTTSConfig } from "@/lib/providers/settings";
+
+const composeSchema = z.object({
+  stage: z.enum(["video", "voice", "compose"]),
+  episodeNumber: z.number().int().min(1),
+  shotId: z.string().optional(),
+  bgmMood: z.string().optional(),
+});
 
 // ========== POST ==========
 
@@ -19,15 +28,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const project = await prisma.project.findUnique({ where: { id } });
     if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
 
-    const body = await req.json().catch(() => ({}));
-    const stage = body?.stage as string | undefined;
-    const episodeNumber = Number(body?.episodeNumber);
-    const shotId = body?.shotId ? String(body.shotId) : undefined;
-    const bgmMood = body?.bgmMood ? String(body.bgmMood) : undefined;
-
-    if (!Number.isInteger(episodeNumber) || episodeNumber <= 0) {
-      return NextResponse.json({ error: "episodeNumber 无效" }, { status: 400 });
+    const raw = await req.json().catch(() => ({}));
+    const parsed = composeSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json({ error: "输入校验失败", details: parsed.error.flatten() }, { status: 400 });
     }
+    const { stage, episodeNumber, shotId, bgmMood } = parsed.data;
     const episode = await prisma.episode.findUnique({
       where: { projectId_number: { projectId: id, number: episodeNumber } },
     });
@@ -40,7 +46,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
     if (stage === "video") {
       if (targets.length === 0) return NextResponse.json({ error: "该集暂无镜头，请先完成分镜" }, { status: 400 });
-      const ready = targets.filter((s) => s.imagePath && s.status !== "VIDEO_GENERATING");
+      const ready = targets.filter(
+        (s) => s.imagePath && s.status !== "VIDEO_GENERATING" && s.status !== "VIDEO_DONE"
+      );
       if (ready.length === 0) return NextResponse.json({ error: "目标镜头均无分镜图或正在生成视频" }, { status: 400 });
 
       const running = await prisma.genTask.count({
@@ -71,7 +79,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           payload: {
             shotId: shot.id,
             imagePath: shot.imagePath,
-            prompt: buildMotionPrompt(shot),
+            prompt: await buildMotionPrompt(shot, id),
             duration: 5,
           },
         });
@@ -94,9 +102,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         return NextResponse.json({ error: "已有配音任务进行中", runningTaskId: "bulk" }, { status: 409 });
       }
 
-      // 角色 → 音色映射（角色提炼的 voiceName 建议）
+      // 角色 → 音色映射（优先角色提炼时的标准 voiceId，缺省用 voiceName 描述文本由 provider 智能匹配）
       const chars = await prisma.character.findMany({ where: { projectId: id } });
-      const voiceByChar = new Map(chars.map((c) => [c.name, c.voiceName]));
+      const voiceByChar = new Map(chars.map((c) => [c.name, c.voiceId ?? c.voiceName]));
+
+      const ttsCfg = await getTTSConfig();
+      const ttsProvider = ttsCfg.engine || "cosyvoice";
 
       const enqueued: string[] = [];
       for (const shot of ready) {
@@ -105,8 +116,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
             projectId: id,
             label: `配音·第${episodeNumber}集#${shot.sequence}${shot.dialogChar ? `·${shot.dialogChar}` : ""}`,
             type: "TTS",
-            provider: "cosyvoice",
-            model: "cosyvoice-v2",
+            provider: ttsProvider,
+            model: ttsCfg.model ?? "tts",
             refType: "shot",
             refId: shot.id,
             status: "QUEUED",

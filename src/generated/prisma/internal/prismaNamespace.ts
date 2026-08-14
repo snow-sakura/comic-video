@@ -402,9 +402,11 @@ export const ModelName = {
   Character: 'Character',
   Scene: 'Scene',
   Asset: 'Asset',
+  PipelineControl: 'PipelineControl',
   Episode: 'Episode',
   Shot: 'Shot',
   ProviderSetting: 'ProviderSetting',
+  PromptTemplate: 'PromptTemplate',
   GenTask: 'GenTask'
 } as const
 
@@ -421,7 +423,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "project" | "script" | "character" | "scene" | "asset" | "episode" | "shot" | "providerSetting" | "genTask"
+    modelProps: "project" | "script" | "character" | "scene" | "asset" | "pipelineControl" | "episode" | "shot" | "providerSetting" | "promptTemplate" | "genTask"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -795,6 +797,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    PipelineControl: {
+      payload: Prisma.$PipelineControlPayload<ExtArgs>
+      fields: Prisma.PipelineControlFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PipelineControlFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PipelineControlPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PipelineControlFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PipelineControlPayload>
+        }
+        findFirst: {
+          args: Prisma.PipelineControlFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PipelineControlPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PipelineControlFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PipelineControlPayload>
+        }
+        findMany: {
+          args: Prisma.PipelineControlFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PipelineControlPayload>[]
+        }
+        create: {
+          args: Prisma.PipelineControlCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PipelineControlPayload>
+        }
+        createMany: {
+          args: Prisma.PipelineControlCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PipelineControlCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PipelineControlPayload>[]
+        }
+        delete: {
+          args: Prisma.PipelineControlDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PipelineControlPayload>
+        }
+        update: {
+          args: Prisma.PipelineControlUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PipelineControlPayload>
+        }
+        deleteMany: {
+          args: Prisma.PipelineControlDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PipelineControlUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PipelineControlUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PipelineControlPayload>[]
+        }
+        upsert: {
+          args: Prisma.PipelineControlUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PipelineControlPayload>
+        }
+        aggregate: {
+          args: Prisma.PipelineControlAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePipelineControl>
+        }
+        groupBy: {
+          args: Prisma.PipelineControlGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PipelineControlGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PipelineControlCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PipelineControlCountAggregateOutputType> | number
+        }
+      }
+    }
     Episode: {
       payload: Prisma.$EpisodePayload<ExtArgs>
       fields: Prisma.EpisodeFieldRefs
@@ -1017,6 +1093,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    PromptTemplate: {
+      payload: Prisma.$PromptTemplatePayload<ExtArgs>
+      fields: Prisma.PromptTemplateFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.PromptTemplateFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTemplatePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.PromptTemplateFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTemplatePayload>
+        }
+        findFirst: {
+          args: Prisma.PromptTemplateFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTemplatePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.PromptTemplateFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTemplatePayload>
+        }
+        findMany: {
+          args: Prisma.PromptTemplateFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTemplatePayload>[]
+        }
+        create: {
+          args: Prisma.PromptTemplateCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTemplatePayload>
+        }
+        createMany: {
+          args: Prisma.PromptTemplateCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.PromptTemplateCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTemplatePayload>[]
+        }
+        delete: {
+          args: Prisma.PromptTemplateDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTemplatePayload>
+        }
+        update: {
+          args: Prisma.PromptTemplateUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTemplatePayload>
+        }
+        deleteMany: {
+          args: Prisma.PromptTemplateDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.PromptTemplateUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.PromptTemplateUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTemplatePayload>[]
+        }
+        upsert: {
+          args: Prisma.PromptTemplateUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$PromptTemplatePayload>
+        }
+        aggregate: {
+          args: Prisma.PromptTemplateAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregatePromptTemplate>
+        }
+        groupBy: {
+          args: Prisma.PromptTemplateGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PromptTemplateGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.PromptTemplateCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.PromptTemplateCountAggregateOutputType> | number
+        }
+      }
+    }
     GenTask: {
       payload: Prisma.$GenTaskPayload<ExtArgs>
       fields: Prisma.GenTaskFieldRefs
@@ -1138,6 +1288,7 @@ export const ProjectScalarFieldEnum = {
   novelPath: 'novelPath',
   novelText: 'novelText',
   novelMeta: 'novelMeta',
+  episodeCount: 'episodeCount',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -1165,6 +1316,7 @@ export const CharacterScalarFieldEnum = {
   projectId: 'projectId',
   name: 'name',
   role: 'role',
+  gender: 'gender',
   appearance: 'appearance',
   personality: 'personality',
   costume: 'costume',
@@ -1207,6 +1359,15 @@ export const AssetScalarFieldEnum = {
 } as const
 
 export type AssetScalarFieldEnum = (typeof AssetScalarFieldEnum)[keyof typeof AssetScalarFieldEnum]
+
+
+export const PipelineControlScalarFieldEnum = {
+  id: 'id',
+  paused: 'paused',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PipelineControlScalarFieldEnum = (typeof PipelineControlScalarFieldEnum)[keyof typeof PipelineControlScalarFieldEnum]
 
 
 export const EpisodeScalarFieldEnum = {
@@ -1260,6 +1421,20 @@ export const ProviderSettingScalarFieldEnum = {
 } as const
 
 export type ProviderSettingScalarFieldEnum = (typeof ProviderSettingScalarFieldEnum)[keyof typeof ProviderSettingScalarFieldEnum]
+
+
+export const PromptTemplateScalarFieldEnum = {
+  id: 'id',
+  key: 'key',
+  scope: 'scope',
+  projectId: 'projectId',
+  name: 'name',
+  template: 'template',
+  enabled: 'enabled',
+  updatedAt: 'updatedAt'
+} as const
+
+export type PromptTemplateScalarFieldEnum = (typeof PromptTemplateScalarFieldEnum)[keyof typeof PromptTemplateScalarFieldEnum]
 
 
 export const GenTaskScalarFieldEnum = {
@@ -1380,6 +1555,20 @@ export type EnumQueryModeFieldRefInput<$PrismaModel> = FieldRefInputType<$Prisma
 
 
 /**
+ * Reference to a field of type 'Int'
+ */
+export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
+    
+
+
+/**
+ * Reference to a field of type 'Int[]'
+ */
+export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+/**
  * Reference to a field of type 'DateTime'
  */
 export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime'>
@@ -1397,20 +1586,6 @@ export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaM
  * Reference to a field of type 'Boolean'
  */
 export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
-    
-
-
-/**
- * Reference to a field of type 'Int'
- */
-export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
-    
-
-
-/**
- * Reference to a field of type 'Int[]'
- */
-export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
     
 
 
@@ -1653,9 +1828,11 @@ export type GlobalOmitConfig = {
   character?: Prisma.CharacterOmit
   scene?: Prisma.SceneOmit
   asset?: Prisma.AssetOmit
+  pipelineControl?: Prisma.PipelineControlOmit
   episode?: Prisma.EpisodeOmit
   shot?: Prisma.ShotOmit
   providerSetting?: Prisma.ProviderSettingOmit
+  promptTemplate?: Prisma.PromptTemplateOmit
   genTask?: Prisma.GenTaskOmit
 }
 

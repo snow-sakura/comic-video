@@ -2,7 +2,9 @@
  * 资产工厂 prompt 组装
  * 核心目标：视觉锚点可复现 —— 定妆照/空镜一旦生成并锁定（APPROVED），
  * 后续 M3 分镜出图将引用这些图作为参考图，保证角色/场景一致性。
+ * 提示词文本已模板化：见 src/lib/prompts/registry.ts（项目覆盖 > 全局 > 内置默认）。
  */
+import { renderPrompt } from "@/lib/prompts/registry";
 
 export interface DesignAppearance {
   hair: string;
@@ -15,6 +17,7 @@ export interface DesignAppearance {
 export interface DesignCharacter {
   name: string;
   role: string;
+  gender: string | null;
   appearance: DesignAppearance;
   refImageIds: string[];
 }
@@ -33,49 +36,75 @@ export function styleAnchor(projectStyle?: Record<string, unknown> | null): stri
   return "现代都市言情风，电影级光影，精致唯美，干净利落的构图，高细节，2.5D 动漫风格，柔和的色彩层次，背景虚化浅景深";
 }
 
+const ROLE_CN: Record<string, string> = {
+  protagonist: "主角",
+  antagonist: "反派",
+  supporting: "配角",
+  utility: "功能性角色",
+};
+
+const GENDER_CN: Record<string, string> = {
+  male: "男性",
+  female: "女性",
+  unknown: "未知（按中性处理）",
+};
+
 /** 角色定妆照 prompt（标准正面半身像 + 姿态变体说明） */
-export function characterDesignPrompt(c: DesignCharacter, anchor: string, angle: "front" | "three-quarter" | "full"): string {
+export async function characterDesignPrompt(
+  c: DesignCharacter,
+  anchor: string,
+  angle: "front" | "three-quarter" | "full",
+  projectId?: string | null
+): Promise<string> {
   const view =
     angle === "front"
       ? "正面全身定妆照，站立姿势，直视镜头，表情中性"
       : angle === "three-quarter"
         ? "四分之三侧面半身像，微侧身，自然姿态"
-        : "全身像，侧面展示完整服装轮廓";
-  return [
-    `${c.name}的角色设计定妆照，${view}`,
-    `外貌特征：发型「${c.appearance.hair}」；服装「${c.appearance.costume}」；面部特征「${c.appearance.facialMarkers}」；体型「${c.appearance.body}」`,
-    `角色身份：${c.role === "protagonist" ? "主角" : c.role === "antagonist" ? "反派" : c.role === "supporting" ? "配角" : "功能性角色"}`,
-    `整体风格：${c.appearance.style}`,
-    `全局画风：${anchor}`,
-    "纯色或浅色干净背景，人物完整可见，柔和顶光 + 正面补光，人物五官清晰对称，肢体比例自然",
-    "服装材质细节明确（褶皱/纹理/配饰），发型发丝层次清晰",
-    "无文字，无水印，无多余人物，无 logo",
-  ].join("\n");
+        : "全身像，侧面展示完整服装轮廓，人物从头到脚完整出现在画面内，头部上方与脚底下方保留少量留白，不可裁切身体任何部位";
+  return renderPrompt(
+    "character",
+    {
+      name: c.name,
+      view,
+      gender: GENDER_CN[c.gender ?? "unknown"] ?? "未知（按中性处理）",
+      hair: c.appearance.hair,
+      costume: c.appearance.costume,
+      facialMarkers: c.appearance.facialMarkers,
+      body: c.appearance.body,
+      roleCN: ROLE_CN[c.role] ?? "功能性角色",
+      charStyle: c.appearance.style,
+      anchor,
+    },
+    projectId
+  );
 }
 
 /** 场景空镜 prompt */
-export function sceneDesignPrompt(s: DesignScene, anchor: string): string {
-  const mood = s.mood ? `，氛围基调：${s.mood}` : "";
-  return [
-    `场景空镜：${s.name}${mood}`,
-    s.description ? `画面描述：${s.description}` : "",
-    "无人物的纯环境镜头，光线与色调契合氛围，电影级构图",
-    "纵深层次清晰：前景/中景/背景三层分明，透视准确，材质细节丰富",
-    `全局画风：${anchor}`,
-    "无文字，无水印",
-  ]
-    .filter(Boolean)
-    .join("\n");
+export async function sceneDesignPrompt(s: DesignScene, anchor: string, projectId?: string | null): Promise<string> {
+  return renderPrompt(
+    "scene",
+    {
+      name: s.name,
+      mood: s.mood ? `，氛围基调：${s.mood}` : "",
+      description: s.description ? `画面描述：${s.description}` : "",
+      anchor,
+    },
+    projectId
+  );
 }
 
 /** 道具 prompt */
-export function propDesignPrompt(name: string, desc: string, anchor: string): string {
-  return [
-    `道具设计图：${name}${desc ? `（${desc}）` : ""}`,
-    "产品展示角度，干净背景，材质细节清晰",
-    `全局画风：${anchor}`,
-    "无文字，无水印",
-  ].join("\n");
+export async function propDesignPrompt(name: string, desc: string, anchor: string, projectId?: string | null): Promise<string> {
+  return renderPrompt(
+    "prop",
+    {
+      name,
+      desc: desc ? `（${desc}）` : "",
+      anchor,
+    },
+    projectId
+  );
 }
 
 /** 从场景情绪关键词推断 mood（供 Scene 表） */
