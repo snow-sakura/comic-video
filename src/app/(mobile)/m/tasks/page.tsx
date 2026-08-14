@@ -31,7 +31,7 @@ const STATUS_BADGE: Record<TaskItem["status"], { text: string; cls: string }> = 
   DONE: { text: "完成", cls: "bg-emerald-500/15 text-emerald-300" },
   FAILED: { text: "失败", cls: "bg-red-500/15 text-red-300" },
   REJECTED: { text: "已拒绝", cls: "bg-zinc-700 text-zinc-400" },
-  PAUSED: { text: "已暂停", cls: "bg-orange-500/15 text-orange-300" },
+  PAUSED: { text: "已暂停", cls: "bg-amber-500/15 text-amber-300" },
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -163,9 +163,9 @@ export default function MobileTasksPage() {
 
       {/* 状态统计 + 筛选 */}
       <div className="mb-3 flex items-center gap-1.5 overflow-x-auto pb-1" style={{ scrollbarWidth: "none" }}>
-        <span className="shrink-0 rounded-lg bg-amber-500/10 px-2 py-1 text-[10px] text-amber-300">运行 {running}</span>
+        <span className="shrink-0 rounded-lg bg-emerald-500/10 px-2 py-1 text-[10px] text-emerald-300">运行 {running}</span>
         {pausedCount > 0 && (
-          <span className="shrink-0 rounded-lg bg-orange-500/10 px-2 py-1 text-[10px] text-orange-300">暂停 {pausedCount}</span>
+          <span className="shrink-0 rounded-lg bg-amber-500/10 px-2 py-1 text-[10px] text-amber-300">暂停 {pausedCount}</span>
         )}
         <span className="shrink-0 rounded-lg bg-red-500/10 px-2 py-1 text-[10px] text-red-300">失败 {failed}</span>
         <select
@@ -197,9 +197,9 @@ export default function MobileTasksPage() {
         }`}
       >
         <div className="flex items-center gap-2">
-          <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${paused ? "bg-amber-400" : "bg-emerald-400"}`} />
+          <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${paused ? "bg-amber-500" : "bg-emerald-500"}`} />
           <div>
-            <p className={`text-xs font-medium ${paused ? "text-amber-200" : "text-emerald-200"}`}>
+            <p className={`text-xs font-medium ${paused ? "text-amber-300" : "text-emerald-300"}`}>
               {paused === null ? "加载中…" : paused ? "流水线已暂停" : "流水线运行中"}
             </p>
             <p className={`text-[10px] ${paused ? "text-amber-300/80" : "text-emerald-300/80"}`}>
@@ -211,8 +211,8 @@ export default function MobileTasksPage() {
           <button
             onClick={() => void togglePipeline()}
             disabled={toggling}
-            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50 ${
-              paused ? "bg-amber-500" : "bg-zinc-700"
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
+              paused ? "bg-amber-500 text-white" : "bg-zinc-100 text-zinc-950"
             }`}
           >
             {toggling ? "…" : paused ? "▶ 继续" : "⏸ 暂停"}
@@ -249,7 +249,7 @@ export default function MobileTasksPage() {
                 {t.projectId && (
                   <Link
                     href={`/m/projects/${t.projectId}`}
-                    className="mt-1.5 block truncate text-[11px] text-violet-400 hover:underline"
+                    className="mt-1.5 block truncate text-[11px] text-violet-600 hover:underline"
                   >
                     {t.projectTitle}
                   </Link>
@@ -273,7 +273,7 @@ export default function MobileTasksPage() {
                       <button
                         onClick={() => void resumeTask(t.id)}
                         disabled={resuming === t.id}
-                        className="flex-1 rounded-lg bg-orange-600 px-2 py-1.5 text-[11px] font-medium text-white disabled:opacity-50"
+                        className="flex-1 rounded-lg bg-amber-500 px-2 py-1.5 text-[11px] font-medium text-white disabled:opacity-50"
                       >
                         {resuming === t.id ? "恢复中…" : "▶ 继续"}
                       </button>

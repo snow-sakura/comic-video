@@ -30,7 +30,7 @@ const STATUS_BADGE: Record<TaskItem["status"], { text: string; cls: string }> = 
   DONE: { text: "完成", cls: "bg-emerald-500/15 text-emerald-300" },
   FAILED: { text: "失败", cls: "bg-red-500/15 text-red-300" },
   REJECTED: { text: "已拒绝", cls: "bg-zinc-700 text-zinc-400" },
-  PAUSED: { text: "已暂停", cls: "bg-orange-500/15 text-orange-300" },
+  PAUSED: { text: "已暂停", cls: "bg-amber-500/15 text-amber-300" },
 };
 
 const TYPE_LABEL: Record<string, string> = {
@@ -168,9 +168,9 @@ export default function TasksPage() {
           <span className="text-xs text-zinc-500">全部项目的生成任务</span>
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <span className="rounded-lg bg-amber-500/10 px-2.5 py-1 text-amber-300">运行中 {running}</span>
+          <span className="rounded-lg bg-emerald-500/10 px-2.5 py-1 text-emerald-300">运行中 {running}</span>
           {pausedCount > 0 && (
-            <span className="rounded-lg bg-orange-500/10 px-2.5 py-1 text-orange-300">已暂停 {pausedCount}</span>
+            <span className="rounded-lg bg-amber-500/10 px-2.5 py-1 text-amber-300">已暂停 {pausedCount}</span>
           )}
           <span className="rounded-lg bg-red-500/10 px-2.5 py-1 text-red-300">失败 {failed}</span>
           <select
@@ -207,11 +207,11 @@ export default function TasksPage() {
         <div className="flex items-center gap-3">
           <span
             className={`inline-block h-2 w-2 shrink-0 rounded-full ${
-              paused ? "bg-amber-400" : "bg-emerald-400"
+              paused ? "bg-amber-500" : "bg-emerald-500"
             }`}
           />
           <div>
-            <p className={`text-sm font-medium ${paused ? "text-amber-200" : "text-emerald-200"}`}>
+            <p className={`text-sm font-medium ${paused ? "text-amber-300" : "text-emerald-300"}`}>
               {paused === null
                 ? "流水线状态加载中…"
                 : paused
@@ -231,10 +231,10 @@ export default function TasksPage() {
           <button
             onClick={() => void togglePipeline()}
             disabled={toggling}
-            className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition disabled:opacity-50 ${
+            className={`rounded-lg px-4 py-2 text-sm font-medium transition disabled:opacity-50 ${
               paused
-                ? "bg-amber-500 hover:bg-amber-400"
-                : "bg-zinc-700 hover:bg-zinc-600"
+                ? "bg-amber-500 text-white hover:bg-amber-600"
+                : "bg-zinc-100 text-zinc-950 hover:bg-zinc-50"
             }`}
           >
             {toggling ? "操作中…" : paused ? "▶ 继续执行" : "⏸ 暂停"}
@@ -272,7 +272,7 @@ export default function TasksPage() {
                       </td>
                       <td className="max-w-36 truncate px-3 py-2.5 text-zinc-300">
                         {t.projectId ? (
-                          <Link href={`/projects/${t.projectId}`} className="hover:text-violet-300 hover:underline">
+                          <Link href={`/projects/${t.projectId}`} className="hover:text-violet-600 hover:underline">
                             {t.projectTitle}
                           </Link>
                         ) : (
@@ -309,7 +309,7 @@ export default function TasksPage() {
                           <button
                             onClick={() => void resumeTask(t.id)}
                             disabled={resuming === t.id}
-                            className="rounded-md bg-orange-600/80 px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-orange-500 disabled:opacity-50"
+                            className="rounded-md bg-amber-500/80 px-2.5 py-1 text-[11px] font-medium text-white transition hover:bg-amber-600 disabled:opacity-50"
                           >
                             {resuming === t.id ? "恢复中…" : "继续执行"}
                           </button>
