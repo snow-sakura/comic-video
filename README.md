@@ -2,8 +2,9 @@
 
 小说 → 剧本 → 资产 → 分镜 → 视频 的 AI 漫剧创作流水线（单用户本地工具，纯云端 API + 国内生态）。
 
-> 🚀 **在线体验**（GitHub Pages 托管，纯静态单文件，零依赖零数据库，数据为内置样例）：
-> **https://snow-sakura.github.io/comic-video/** （push `demo/` 自动部署）
+> 🚀 **在线体验**（纯静态单文件，零依赖零数据库，数据为内置样例）：
+> - **GitHub Pages**（自动部署，需代理/VPN 访问）：**https://snow-sakura.github.io/comic-video/** （push `demo/` 自动部署）
+> - **jsDelivr 镜像**（国内直连可用，约 12h 缓存）：**https://cdn.jsdelivr.net/gh/snow-sakura/comic-video@main/demo/index.html** （更新后想看最新版，末尾加 `?v=版本号` 强制刷新）
 >
 > 本地方式：克隆后直接用浏览器打开仓库内 `demo/index.html`，或在本地任意静态服务器（如 `npx serve demo`）下访问，即可完整体验四步流水线交互。
 
