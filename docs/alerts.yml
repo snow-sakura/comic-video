@@ -1,5 +1,6 @@
 # Prometheus 告警规则
 # 配合 prometheus.yml 使用
+# 注意：comic_video_* 指标为规划示例，当前代码未导出，启用前需先实现 /metrics 端点
 
 groups:
   - name: comic-video-queue

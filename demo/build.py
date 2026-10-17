@@ -1,0 +1,207 @@
+#!/usr/bin/env python3
+"""生成 demo/index.html —— 纯静态单页 Demo（GitHub Pages 可直接托管）。
+数据源：demo/assets/{shots.json,meta.json} + 素材文件。零外部依赖。"""
+
+import json
+from pathlib import Path
+
+base = Path(__file__).resolve().parent
+shots = json.loads((base / "assets/shots.json").read_text(encoding="utf-8"))
+chars = json.loads((base / "assets/meta.json").read_text(encoding="utf-8"))
+
+DATA = {
+    "title": "青灯引魂",
+    "logline": "少年阿澈夜入闹鬼旧书院，遇守候三百年的灯灵少女——信与不信之斗，认与不认之诺。",
+    "novel": "第一章 萤火\n山脚下的小镇，夏夜闷热。少年阿澈提着灯笼，走进传说闹鬼的旧书院。“我不信鬼。”他说给自己听。\n\n第二章 灯灵\n书阁深处，一盏青灯忽然亮起，灯焰里浮出少女轮廓，轻声说：“等了你三百年。”阿澈后退半步，却没有逃。",
+    "characters": [
+        {
+            "name": c["name"],
+            "role": "主角" if c["role"] == "protagonist" else "配角",
+            "voice": c["voice"],
+            "desc": f"{c['hair']}｜{c['body']}｜{c['costume']}｜{c['style']}",
+            "imgs": [
+                f"assets/char-{'a' if c['role'] == 'protagonist' else 'b'}-{i}.jpg"
+                for i in range(3)
+            ],
+        }
+        for c in chars
+    ],
+    "scenes": ["assets/scene-0.jpg", "assets/scene-1.jpg"],
+    "shots": shots,
+    "final": "assets/final-ep1.mp4",
+    "motion": "assets/motion-demo.mp4",
+    "voice": "assets/voice-demo.mp3",
+}
+
+HTML = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f6f2ea">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏮</text></svg>">
+<title>AI 漫剧工坊 · 在线 Demo — 青灯引魂</title>
+<style>
+  :root{--paper:#f6f2ea;--ink:#3e372e;--ink2:#7a7165;--matcha:#6b8e6b;--matcha-bg:#e8efe4;
+        --brick:#b0574f;--amber:#c98a3d;--amber-bg:#f6ead2;--line:#e3dccf;--card:#fffdf8;}
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:var(--paper);color:var(--ink);font:15px/1.7 -apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+       background-image:radial-gradient(rgba(62,55,46,.045) 1px,transparent 1px);background-size:22px 22px}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 20px 80px}
+  header{padding:42px 0 22px;text-align:center}
+  header h1{font-size:30px;letter-spacing:2px}
+  header h1 em{font-style:normal;color:var(--matcha)}
+  header p.sub{color:var(--ink2);margin-top:8px;font-size:14px}
+  .badge{display:inline-block;margin:14px 4px 0;padding:4px 12px;border-radius:999px;font-size:12px;
+         background:var(--matcha-bg);color:var(--matcha);border:1px solid #cfdccb}
+  .badge.demo{background:var(--amber-bg);color:var(--amber);border-color:#e5d2ad}
+  .steps{display:flex;gap:10px;margin:28px 0 6px;position:sticky;top:0;background:linear-gradient(var(--paper) 86%,transparent);padding:12px 0;z-index:9}
+  .steps button{flex:1;padding:12px 8px;border:1px solid var(--line);background:var(--card);border-radius:12px;cursor:pointer;
+                font-size:14px;color:var(--ink2);transition:.18s}
+  .steps button.on{background:var(--matcha);color:#fff;border-color:var(--matcha);box-shadow:0 4px 14px rgba(107,142,107,.3)}
+  .steps .no{display:block;font-size:11px;opacity:.72}
+  section.step{display:none;animation:fade .35s}
+  section.step.on{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+  h2.t{margin:30px 0 4px;font-size:20px}
+  h2.t .n{color:var(--matcha);margin-right:8px}
+  p.d{color:var(--ink2);font-size:13.5px;margin-bottom:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 2px 10px rgba(62,55,46,.05)}
+  .grid{display:grid;gap:14px}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+  .g4{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .novel{white-space:pre-wrap;background:#fbf8f1;border-radius:10px;padding:14px 16px;font-size:13.5px;color:#5b544a;border:1px dashed var(--line)}
+  .tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;background:var(--matcha-bg);color:var(--matcha);margin-right:6px}
+  .tag.b{background:var(--amber-bg);color:var(--amber)}
+  .char .imgs{display:flex;gap:8px;margin-top:10px}
+  .char .imgs img{width:31%;border-radius:8px;border:1px solid var(--line);cursor:zoom-in;transition:.15s}
+  .char .imgs img:hover{transform:scale(1.04)}
+  .shot{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .shot img{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;cursor:zoom-in}
+  .shot .bd{padding:10px 12px;font-size:12.5px}
+  .shot .hd{display:flex;justify-content:space-between;color:var(--ink2);font-size:11.5px;margin-bottom:4px}
+  .shot .act{color:#5b544a;min-height:38px}
+  .shot .dlg{margin-top:6px;color:var(--brick);font-size:12px}
+  .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--ink2)}
+  .flow b{background:var(--matcha-bg);color:var(--matcha);padding:6px 12px;border-radius:8px;font-weight:600}
+  .flow i{font-style:normal;color:#c0b8a8}
+  .wait{display:flex;align-items:center;gap:10px;background:var(--amber-bg);border:1px solid #e5d2ad;border-radius:10px;padding:10px 14px;font-size:13px;color:#8a6a2f}
+  .lock{display:flex;align-items:center;gap:10px;background:#efe9dd;border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:13px;color:var(--ink2)}
+  .pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+  .pill{font-size:12px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:#fbf8f1;color:#6b6156}
+  video,audio{width:100%;border-radius:10px;margin-top:8px;background:#000}
+  #lightbox{position:fixed;inset:0;background:rgba(30,26,20,.86);display:none;align-items:center;justify-content:center;z-index:99;cursor:zoom-out}
+  #lightbox img{max-width:92vw;max-height:88vh;border-radius:8px}
+  footer{margin-top:46px;text-align:center;color:var(--ink2);font-size:12.5px;line-height:2}
+  footer a{color:var(--matcha)}
+  @media(max-width:640px){.steps{flex-wrap:wrap}.steps button{flex:1 1 40%}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>AI 漫剧工坊 <em>·</em> 在线 Demo</h1>
+  <p class="sub">小说 → 剧本 → 资产 → 分镜 → 视频 · 本页为真实运行产物快照（纯静态 · 零后端 · 数据内嵌）</p>
+  <div>
+    <span class="badge demo">📦 示例项目《青灯引魂》1 集 · 13 镜头</span>
+    <span class="badge">🆓 全免费模型产出（Agnes 免费档）</span>
+    <span class="badge">🔒 数据仅存作者本地 · 本页已脱敏导出</span>
+  </div>
+</header>
+
+<nav class="steps" id="nav">
+  <button data-s="s1" class="on"><span class="no">STEP 01</span>剧本工坊</button>
+  <button data-s="s2"><span class="no">STEP 02</span>资产工厂</button>
+  <button data-s="s3"><span class="no">STEP 03</span>分镜车间</button>
+  <button data-s="s4"><span class="no">STEP 04</span>视频合成厂</button>
+</nav>
+
+<section class="step on" id="s1">
+  <h2 class="t"><span class="n">01</span>剧本工坊 · 把小说变成可拍摄的剧本</h2>
+  <p class="d">导入小说 → AI 提炼角色（外貌/性格/配音建议）→ 分集大纲 → 逐集结构化剧本（场景 / 动作 / 台词 / 集尾钩子）。</p>
+  <div class="card"><span class="tag">① 导入小说</span><p class="d" style="margin:6px 0 8px">导入的 2 章原文（自动章节切分）：</p><div class="novel" id="novel"></div></div>
+  <div class="card"><span class="tag">② 故事核心</span><p style="margin-top:8px" id="logline"></p>
+    <div class="pills" id="outline"></div></div>
+  <div class="card"><span class="tag">③ AI 提炼角色</span><p class="d" style="margin:6px 0 0">LLM 自动产出角色卡并匹配配音音色 → 详见 STEP 02 定妆照。</p></div>
+</section>
+
+<section class="step" id="s2">
+  <h2 class="t"><span class="n">02</span>资产工厂 · 一次定妆，镜镜一致</h2>
+  <p class="d">每个角色生成 正面 / 侧面 / 全身 三张定妆照，审阅后「锁定」；锁定资产自动注入后续所有分镜的参考图，保证跨镜头一致性。</p>
+  <div class="grid g2" id="chars"></div>
+  <div class="card"><span class="tag">场景空镜</span><p class="d" style="margin:6px 0 0">无人物环境图，供分镜背景引用：</p>
+    <div class="grid g2" id="scenes" style="margin-top:10px"></div></div>
+</section>
+
+<section class="step" id="s3">
+  <h2 class="t"><span class="n">03</span>分镜车间 · 13 个镜头逐镜生成</h2>
+  <p class="d">AI 将剧本拆为镜头（景别 / 机位 / 运镜 / 时长 / 台词），自动组装 7 维提示词（主体/环境/构图/色彩/情绪/风格/灯光）并引用锁定资产 → 逐镜独立出图，失败可单镜重出。</p>
+  <div class="grid g3" id="shots"></div>
+  <div class="card" style="margin-top:16px"><span class="tag b">⏳ 限流自适应（免费档实拍行为）</span>
+    <p style="margin-top:8px">免费图像模型限流（503/每分钟限额）时任务不失败：自动退避重试（60→300s，最多 6 次），界面显示等待文案而非报错。</p>
+    <div class="wait" style="margin-top:10px">⏳ 分镜图·第1集#7 — 限流等待重试（第2次），约 120 秒后重试</div></div>
+</section>
+
+<section class="step" id="s4">
+  <h2 class="t"><span class="n">04</span>视频合成厂 · 逐镜成片自动导出</h2>
+  <p class="d">流程：分镜图 + 微动态提示词 → 图生视频 → 台词 + 角色音色 → TTS 配音 → ffmpeg 逐镜拼接混音 + SRT 字幕 → 成片。</p>
+  <div class="grid g2">
+    <div class="card"><span class="tag">微动态视频（图生视频产物）</span><video src="assets/motion-demo.mp4" controls muted loop playsinline></video></div>
+    <div class="card"><span class="tag">角色配音（TTS 产物）</span><audio src="assets/voice-demo.mp3" controls></audio>
+      <p class="d" style="margin-top:8px">音色由角色卡自动匹配（清亮少年音 / 空灵少女音）。</p></div>
+  </div>
+  <div class="card"><span class="tag">🎬 成片示例</span><p class="d" style="margin:6px 0 0">真实 pipeline 导出（1280×720 H.264 + AAC，ffmpeg 拼接）：</p>
+    <video src="assets/final-ep1.mp4" controls playsinline></video></div>
+  <div class="card"><span class="tag b">🔒 逐集串行闸门（多集项目行为）</span>
+    <p style="margin-top:8px">多集项目必须一集全部镜头视频完成才能进入下一集，防止限流配额被多集瓜分导致全部卡死：</p>
+    <div class="lock" style="margin-top:10px">🔒 第2集 · 残卷认主 —— 第1集还有 9 个镜头未完成视频（API 返回 409 · blockedBy=1）</div>
+    <div class="flow" style="margin-top:12px"><b>出图完成</b><i>→</i><b>自动入队视频</b><i>→</i><b>配音</b><i>→</i><b>合成</b><i>→</i><b>下一集</b><span style="margin-left:6px">（自动连播 · 全程无人值守）</span></div></div>
+</section>
+
+<div id="lightbox"><img alt=""></div>
+<footer>
+  <p>本 Demo 由 <a href="https://github.com/snow-sakura/comic-video" target="_blank">AI 漫剧工坊</a> 真实运行产物导出 · 纯 GitHub 托管（Pages + 仓库静态文件）</p>
+  <p>🖥️ 本地完整体验：<code>git clone → ./scripts/start.sh</code>（详见 README）</p>
+</footer>
+</div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+document.getElementById('novel').textContent = D.novel;
+document.getElementById('logline').textContent = D.logline;
+document.getElementById('outline').insertAdjacentHTML('beforeend',
+  ['第1集 · 青灯引魂（集尾钩子：她是人，是鬼，还是等了他三百年的执念？）','1 集大纲 · 1 集剧本 · 13 镜头','🆓 免费档位串行档生成'].map(t=>`<span class="pill">${t}</span>`).join(''));
+document.getElementById('chars').innerHTML = D.characters.map(c=>`
+  <div class="card char"><span class="tag">${c.role}</span><b>${c.name}</b>
+    <p class="d" style="margin:6px 0">${c.desc}</p>
+    <span class="tag b">音色 · ${c.voice}</span>
+    <div class="imgs">${c.imgs.map(s=>`<img src="${s}" loading="lazy" alt="${c.name}定妆">`).join('')}</div>
+  </div>`).join('');
+document.getElementById('scenes').innerHTML = D.scenes.map(s=>`<img src="${s}" style="width:100%;border-radius:8px;border:1px solid var(--line);cursor:zoom-in" loading="lazy" alt="场景空镜">`).join('');
+document.getElementById('shots').innerHTML = D.shots.map(s=>`
+  <div class="shot"><img src="${s.img}" loading="lazy" alt="镜头${s.npos}">
+    <div class="bd"><div class="hd"><span>#${s.npos} · ${s.shot||''}</span><span>${s.dur||5}s</span></div>
+    <div class="act">${s.action}</div>${s.line?`<div class="dlg">「${s.line}」</div>`:''}</div></div>`).join('');
+document.getElementById('nav').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  document.querySelectorAll('#nav button').forEach(x=>x.classList.toggle('on', x===b));
+  document.querySelectorAll('section.step').forEach(x=>x.classList.toggle('on', x.id===b.dataset.s));
+  window.scrollTo({top:0, behavior:'smooth'});
+});
+const lb = document.getElementById('lightbox');
+document.addEventListener('click', e => {
+  if (e.target.matches('img')) { lb.querySelector('img').src = e.target.src; lb.style.display='flex'; }
+  else if (e.target.closest('#lightbox')) lb.style.display='none';
+});
+</script>
+</body>
+</html>
+"""
+
+out = HTML.replace(
+    "__DATA__", json.dumps(DATA, ensure_ascii=False).replace("</", "<\\/")
+)
+(base / "index.html").write_text(out, encoding="utf-8")
+print("demo/index.html 生成完成", len(out), "字节")

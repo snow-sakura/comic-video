@@ -1,53 +1,42 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
+# ===== 通用 =====
 .DS_Store
 *.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
 *.tsbuildinfo
-next-env.d.ts
+.workbuddy/
 
-# 本地生成资产
-/storage
-.playwright-mcp/
+# env 文件（含真实密钥，不入库）
+.env
+.env.*
+!.env.example
+.env_bak
+
+# IDE / 工具缓存
 .idea/
+.playwright-mcp/
+.ruff_cache/
+*.pyc
+__pycache__/
+.mypy_cache/
+.pytest_cache/
 
-# dev.sh 运行时日志
+# 运行时日志
+*.log
 .dev.log
 .worker.log
 
-# 本地工作区工具数据
-.workbuddy/
+# ===== 前端 frontend/ =====
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+
+# ===== 后端 backend/ =====
+backend/.venv/
+backend/storage/
+backend/.env
+backend/.env.local
+
+# ===== 根目录生成资产 =====
+/storage/
+
+# 私人小说素材（受版权保护的完整文本，不入库）
+novel/

@@ -1,5 +1,8 @@
 # Prometheus 配置示例
 # 用法: prometheus --config.file=prometheus.yml
+# 注意：本配置为规划示例。comic_video_* 应用指标当前尚未由代码导出
+# （后端为 FastAPI + Celery，如需启用需自行实现 /metrics 导出端点），
+# node/redis/postgresql 三个 job 依赖对应 exporter，可按需启用。
 
 global:
   scrape_interval: 15s      # 默认采集间隔
